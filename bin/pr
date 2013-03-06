@@ -1,0 +1,17 @@
+#!/usr/bin/env perl
+
+# ABSTRACT: Command-line tool to query GitHub pull requests
+# PODNAME: pr
+
+use strict;
+use warnings;
+
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+
+use App::GitHubPullRequest;
+
+my $pr = App::GitHubPullRequest->new;
+my $rc = $pr->run(@ARGV);
+exit $rc;
+
