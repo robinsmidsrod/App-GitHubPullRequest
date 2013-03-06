@@ -1,6 +1,8 @@
 Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
+
+0.0.6     2013-03-06 19:28:09 Europe/Oslo
     - Fixed broken changelog
 
 0.0.5     2013-03-06 19:24:29 Europe/Oslo
