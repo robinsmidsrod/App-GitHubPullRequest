@@ -1,6 +1,8 @@
 Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
+
+0.0.3     2013-03-06 15:15:06 Europe/Oslo
     - Only worked on SSH github URLs. Now works on both SSH and git:// URLs.
 
 0.0.2     2013-03-06 14:14:05 Europe/Oslo
