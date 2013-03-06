@@ -1,8 +1,11 @@
 Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
+    - Fixed broken changelog
 
 0.0.5     2013-03-06 19:24:29 Europe/Oslo
+    - Added commands for opening and closing pull requests
+    - Added command for adding comment to pull requests
 
 0.0.4     2013-03-06 16:07:07 Europe/Oslo
     - Renamed command-line tool from 'pr' to 'prq' because it was
