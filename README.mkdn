@@ -42,6 +42,14 @@ comments.
 
 Shows the patch associated with the specified pull request number.
 
+## close <number>
+
+Closes the specified pull request number.
+
+## open <number>
+
+Reopens the specified pull request number.
+
 # METHODS
 
 ## run(@args)

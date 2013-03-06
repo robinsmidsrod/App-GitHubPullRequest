@@ -6,8 +6,7 @@ package App::GitHubPullRequest;
 
 # ABSTRACT: Command-line tool to query GitHub pull requests
 
-use JSON qw(decode_json);
-use Data::Dumper qw(Dumper);
+use JSON qw(decode_json encode_json);
 
 sub new {
     my ($class) = @_;
@@ -44,8 +43,10 @@ Where command is one of these:
 
   list [<state>] Show all pull requests (default)
                      state: open/closed (default: open)
-  show <number>  Show details for a specific pull request
-  patch <number> Fetch a properly formatted patch for specific pull request
+  show <number>  Show details for the specific pull request
+  patch <number> Fetch a properly formatted patch for the specific pull request
+  close <number> Close the specified pull request
+  open <number>  Reopen the specified pull request
   help           Show this page
 
 EOM
@@ -129,6 +130,50 @@ sub patch {
         unless defined $patch;
     print $patch;
     return 0;
+}
+
+=cmd close <number>
+
+Closes the specified pull request number.
+
+=cut
+
+sub close {
+    my ($self, $number) = @_;
+    die("Please specify a pull request number.\n") unless $number;
+    my $pr = $self->_state($number, 'closed');
+    die("Unable to close pull request $number.\n")
+        unless defined $pr;
+    say "Pull request $number now in state: " . $pr->{'state'};
+    return 0;
+}
+
+=cmd open <number>
+
+Reopens the specified pull request number.
+
+=cut
+
+sub open {
+    my ($self, $number) = @_;
+    die("Please specify a pull request number.\n") unless $number;
+    my $pr = $self->_state($number, 'open');
+    die("Unable to open pull request $number.\n")
+        unless defined $pr;
+    say "Pull request $number now in state: " . $pr->{'state'};
+    return 0;
+}
+
+sub _state {
+    my ($self, $number, $state) = @_;
+    croak("Please specify a pull request number") unless $number;
+    croak("Please specify a pull request state") unless $state;
+    my $remote_repo = _find_github_remote();
+    my $url = "https://api.github.com/repos/$remote_repo/pulls/$number";
+    my $mimetype = 'application/json';
+    my $data = encode_json({ "state" => $state });
+    my $pr = decode_json( _patch_url($url, $mimetype, $data) );
+    return $pr;
 }
 
 sub _fetch_comments {
@@ -222,12 +267,50 @@ sub _fetch_url {
         }
     }
 
+    # Fetch information
     my $content = qx{curl -s -w '\%{http_code}' $credentials "$url"};
     my $rc = $? >> 8; # see perldoc perlvar $? entry for details
     die("curl failed to fetch $url with code $rc.\n") if $rc != 0;
     my $code = substr($content, -3, 3, '');
     if ( $code >= 400 ) {
         die("Fetching URL $url failed with code $code:\n$content\n");
+    }
+    return $content;
+}
+
+# Send a PATCH request to a URL
+# If URL starts with https://api.github.com/, use github user+password from
+# your ~/.gitconfig
+sub _patch_url {
+    my ($url, $mimetype, $data) = @_;
+    croak("Please specify a URL") unless $url;
+    croak("Please specify a mimetype") unless $mimetype;
+    croak("Please specify some data") unless $data;
+
+    # See if we should use credentials
+    my $credentials = "";
+    if ( $url =~ m{^https://api.github.com/} ) {
+        my $user = qx{git config github.user};
+        my $password = qx{git config github.password};
+        chomp $user;
+        chomp $password;
+        die("You must set 'git config github.user' and 'git config github.password' to modify pull requests.\n")
+            unless $user and $password;
+        $credentials = qq{-u "$user:$password"};
+    }
+
+    # Prepare modification request
+    my $mime = qq{-H "Content-Type: $mimetype"};
+    $data =~ s{'}{\\'}; # Escape single quotes
+    my $datatosend = qq{-d '$data'};
+
+    # Send modification request
+    my $content = qx{curl -s -w '\%{http_code}' -X PATCH $credentials $mime $datatosend "$url"};
+    my $rc = $? >> 8; # see perldoc perlvar $? entry for details
+    die("curl failed to patch $url with code $rc.\n") if $rc != 0;
+    my $code = substr($content, -3, 3, '');
+    if ( $code >= 400 ) {
+        die("Patching URL $url failed with code $code:\n$content\n");
     }
     return $content;
 }
