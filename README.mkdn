@@ -4,15 +4,15 @@ App::GitHubPullRequest - Command-line tool to query GitHub pull requests
 
 # VERSION
 
-version 0.0.3
+version 0.0.4
 
 # SYNOPSIS
 
-    $ pr
-    $ pr list closed # not shown by default
-    $ pr show 7      # also includes comments
-    $ pr patch 7     # can be piped to colordiff if you like colors
-    $ pr help
+    $ prq
+    $ prq list closed # not shown by default
+    $ prq show 7      # also includes comments
+    $ prq patch 7     # can be piped to colordiff if you like colors
+    $ prq help
 
 # INSTALLATION
 
@@ -47,7 +47,7 @@ Shows the patch associated with the specified pull request number.
 ## run(@args)
 
 Calls any of the other listed public methods with specified arguments. This
-is usually called automatically when you invoke [pr](http://search.cpan.org/perldoc?pr).
+is usually called automatically when you invoke [prq](http://search.cpan.org/perldoc?prq).
 
 # CAVEATS
 
@@ -61,7 +61,7 @@ have a remote that points to github.com for the tool to work.
 
 # SEE ALSO
 
-- [pr](http://search.cpan.org/perldoc?pr)
+- [prq](http://search.cpan.org/perldoc?prq)
 
 # SEMANTIC VERSIONING
 

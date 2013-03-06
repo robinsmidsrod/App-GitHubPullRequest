@@ -17,7 +17,7 @@ sub new {
 =method run(@args)
 
 Calls any of the other listed public methods with specified arguments. This
-is usually called automatically when you invoke L<pr>.
+is usually called automatically when you invoke L<prq>.
 
 =cut
 
@@ -236,11 +236,11 @@ sub _fetch_url {
 
 =head1 SYNOPSIS
 
-    $ pr
-    $ pr list closed # not shown by default
-    $ pr show 7      # also includes comments
-    $ pr patch 7     # can be piped to colordiff if you like colors
-    $ pr help
+    $ prq
+    $ prq list closed # not shown by default
+    $ prq show 7      # also includes comments
+    $ prq patch 7     # can be piped to colordiff if you like colors
+    $ prq help
 
 
 =head1 INSTALLATION
@@ -265,7 +265,7 @@ have a remote that points to github.com for the tool to work.
 =head1 SEE ALSO
 
 =for :list
-* L<pr>
+* L<prq>
 
 
 =head1 SEMANTIC VERSIONING
