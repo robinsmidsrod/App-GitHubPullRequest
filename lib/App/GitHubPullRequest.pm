@@ -47,6 +47,9 @@ Where command is one of these:
   patch <number> Fetch a properly formatted patch for the specific pull request
   close <number> Close the specified pull request
   open <number>  Reopen the specified pull request
+
+  comment <number> <text> Create a comment on the specified pull request
+
   help           Show this page
 
 EOM
@@ -161,6 +164,28 @@ sub open {
     die("Unable to open pull request $number.\n")
         unless defined $pr;
     say "Pull request $number now in state: " . $pr->{'state'};
+    return 0;
+}
+
+=cmd comment <number> <text>
+
+Creates a comment on the specified pull request with the specified text.
+
+=cut
+
+sub comment {
+    my ($self, $number, $text) = @_;
+    die("Please specify a pull request number.\n") unless $number;
+    die("Please specify some text.\n") unless $text;
+    my $remote_repo = _find_github_remote();
+    my $url = "https://api.github.com/repos/$remote_repo/issues/$number/comments";
+    my $mimetype = 'application/json';
+    my $data = encode_json({ "body" => $text });
+    my $comment = decode_json( _post_url($url, $mimetype, $data) );
+    die("Unable to add comment on pull request $number.\n")
+        unless defined $comment;
+    say "Comment added. You can view it online here:\n"
+      . $comment->{'html_url'};
     return 0;
 }
 
@@ -315,6 +340,43 @@ sub _patch_url {
     return $content;
 }
 
+# Send a POST request to a URL
+# If URL starts with https://api.github.com/, use github user+password from
+# your ~/.gitconfig
+sub _post_url {
+    my ($url, $mimetype, $data) = @_;
+    croak("Please specify a URL") unless $url;
+    croak("Please specify a mimetype") unless $mimetype;
+    croak("Please specify some data") unless $data;
+
+    # See if we should use credentials
+    my $credentials = "";
+    if ( $url =~ m{^https://api.github.com/} ) {
+        my $user = qx{git config github.user};
+        my $password = qx{git config github.password};
+        chomp $user;
+        chomp $password;
+        die("You must set 'git config github.user' and 'git config github.password' to modify pull requests.\n")
+            unless $user and $password;
+        $credentials = qq{-u "$user:$password"};
+    }
+
+    # Prepare modification request
+    my $mime = qq{-H "Content-Type: $mimetype"};
+    $data =~ s{'}{\\'}; # Escape single quotes
+    my $datatosend = qq{-d '$data'};
+
+    # Send modification request
+    my $content = qx{curl -s -w '\%{http_code}' -X POST $credentials $mime $datatosend "$url"};
+    my $rc = $? >> 8; # see perldoc perlvar $? entry for details
+    die("curl failed to post to $url with code $rc.\n") if $rc != 0;
+    my $code = substr($content, -3, 3, '');
+    if ( $code >= 400 ) {
+        die("Posting to URL $url failed with code $code:\n$content\n");
+    }
+    return $content;
+}
+
 1;
 
 =head1 SYNOPSIS
@@ -323,6 +385,9 @@ sub _patch_url {
     $ prq list closed # not shown by default
     $ prq show 7      # also includes comments
     $ prq patch 7     # can be piped to colordiff if you like colors
+    $ prq close 7
+    $ prq open 7
+    $ prq comment 7 "This is good stuff!"
     $ prq help
 
 
