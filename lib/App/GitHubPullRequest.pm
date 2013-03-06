@@ -14,6 +14,13 @@ sub new {
     return bless {}, $class;
 }
 
+=method run(@args)
+
+Calls any of the other listed public methods with specified arguments. This
+is usually called automatically when you invoke L<pr>.
+
+=cut
+
 sub run {
     my ($self, @args) = @_;
     my $cmd = scalar @args ? shift @args : 'list';
@@ -21,6 +28,12 @@ sub run {
     return $self->$method(@args) if $method;
     return $self->help(@args);
 }
+
+=cmd help
+
+Displays some help.
+
+=cut
 
 sub help {
     my ($self, @args) = @_;
@@ -39,15 +52,38 @@ EOM
     return 1;
 }
 
-sub patch {
-    my ($self, $number) = @_;
-    die("Please specify a pull request number.\n") unless $number;
-    my $patch = $self->_fetch_patch($number);
-    die("Unable to fetch patch for pull request $number.\n")
-        unless defined $patch;
-    print $patch;
+=cmd list [<state>]
+
+Shows all pull requests in the given state. State can be either C<open> or
+C<closed>.  The default state is C<open>.  This is the default command if
+none is specified.
+
+=cut
+
+sub list {
+    my ($self, $state) = @_;
+    my $prs = $self->_fetch_all($state);
+    say ucfirst($prs->{'state'}) . " pull requests for '" . $prs->{"repo"} . "':";
+    unless ( $prs->{'pull_requests'} and @{ $prs->{'pull_requests'} } ) {
+        say "No pull requests found.";
+        return 0;
+    }
+    foreach my $pr ( @{ $prs->{"pull_requests"} } ) {
+        my $number = $pr->{"number"};
+        my $title = $pr->{"title"};
+        my $body = $pr->{"body"};
+        my $date = $pr->{"updated_at"} || $pr->{'created_at'};
+        say join(" ", $number, $date, $title);
+    }
     return 0;
 }
+
+=cmd show <number>
+
+Shows details about the specified pull request number. Also includes
+comments.
+
+=cut
 
 sub show {
     my ($self, $number, @args) = @_;
@@ -79,21 +115,19 @@ sub show {
     return 0;
 }
 
-sub list {
-    my ($self, $state) = @_;
-    my $prs = $self->_fetch_all($state);
-    say ucfirst($prs->{'state'}) . " pull requests for '" . $prs->{"repo"} . "':";
-    unless ( $prs->{'pull_requests'} and @{ $prs->{'pull_requests'} } ) {
-        say "No pull requests found.";
-        return 0;
-    }
-    foreach my $pr ( @{ $prs->{"pull_requests"} } ) {
-        my $number = $pr->{"number"};
-        my $title = $pr->{"title"};
-        my $body = $pr->{"body"};
-        my $date = $pr->{"updated_at"} || $pr->{'created_at'};
-        say join(" ", $number, $date, $title);
-    }
+=cmd patch <number>
+
+Shows the patch associated with the specified pull request number.
+
+=cut
+
+sub patch {
+    my ($self, $number) = @_;
+    die("Please specify a pull request number.\n") unless $number;
+    my $patch = $self->_fetch_patch($number);
+    die("Unable to fetch patch for pull request $number.\n")
+        unless defined $patch;
+    print $patch;
     return 0;
 }
 
@@ -199,3 +233,44 @@ sub _fetch_url {
 }
 
 1;
+
+=head1 SYNOPSIS
+
+    $ pr
+    $ pr list closed # not shown by default
+    $ pr show 7      # also includes comments
+    $ pr patch 7     # can be piped to colordiff if you like colors
+    $ pr help
+
+
+=head1 INSTALLATION
+
+Install it by just typing in these few lines in your shell:
+
+    $ curl -L http://cpanmin.us | perl - --self-upgrade
+    $ cpanm App::GitHubPullRequest
+
+
+=head1 CAVEATS
+
+If you don't have C<git config github.user> and C<git config github.password>
+set in your git config, it will use unauthenticated API requests, which has
+a rate-limit of 60 requests. If you add your user + password info it should
+allow 5000 requests before you hit the limit.
+
+You must be standing in a directory that is a git dir and that directory must
+have a remote that points to github.com for the tool to work.
+
+
+=head1 SEE ALSO
+
+=for :list
+* L<pr>
+
+
+=head1 SEMANTIC VERSIONING
+
+This module uses semantic versioning concepts from L<http://semver.org/>.
+
+
+=cut

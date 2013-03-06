@@ -15,3 +15,43 @@ my $pr = App::GitHubPullRequest->new;
 my $rc = $pr->run(@ARGV);
 exit $rc;
 
+=head1 SYNOPSIS
+
+    $ pr
+    $ pr list closed # not shown by default
+    $ pr show 7      # also includes comments
+    $ pr patch 7     # can be piped to colordiff if you like colors
+    $ pr help
+
+
+=head1 INSTALLATION
+
+Install it by just typing in these few lines in your shell:
+
+    $ curl -L http://cpanmin.us | perl - --self-upgrade
+    $ cpanm App::GitHubPullRequest
+
+
+=head1 CAVEATS
+
+If you don't have C<git config github.user> and C<git config github.password>
+set in your git config, it will use unauthenticated API requests, which has
+a rate-limit of 60 requests. If you add your user + password info it should
+allow 5000 requests before you hit the limit.
+
+You must be standing in a directory that is a git dir and that directory must
+have a remote that points to github.com for the tool to work.
+
+
+=head1 SEE ALSO
+
+=for :list
+* L<App::GitHubPullRequest>
+
+
+=head1 SEMANTIC VERSIONING
+
+This module uses semantic versioning concepts from L<http://semver.org/>.
+
+
+=cut
