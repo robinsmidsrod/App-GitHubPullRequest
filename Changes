@@ -1,6 +1,8 @@
 Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
+    - Renamed command-line tool from 'pr' to 'prq' because it was
+      conflicting with 'pr' from coreutils.
 
 0.0.3     2013-03-06 15:15:06 Europe/Oslo
     - Only worked on SSH github URLs. Now works on both SSH and git:// URLs.
