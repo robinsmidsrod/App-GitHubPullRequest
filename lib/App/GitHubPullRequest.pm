@@ -177,8 +177,8 @@ sub _find_github_remote {
     foreach my $line (@lines) {
         my ($remote, $url, $type) = split /\s+/, $line;
         next unless $type eq '(fetch)'; # only consider fetch remotes
-        next unless $url =~ m/github\.com:/; # only consider remotes to github
-        if ( $url =~ m/github.com:(.+)\.git$/ ) {
+        next unless $url =~ m/github\.com/; # only consider remotes to github
+        if ( $url =~ m{github.com[:/](.+)\.git$} ) {
             $repo = $1;
             last;
         }
