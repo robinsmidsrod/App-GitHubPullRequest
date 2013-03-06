@@ -1,6 +1,8 @@
 Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
+
+0.0.4     2013-03-06 16:07:07 Europe/Oslo
     - Renamed command-line tool from 'pr' to 'prq' because it was
       conflicting with 'pr' from coreutils.
 
