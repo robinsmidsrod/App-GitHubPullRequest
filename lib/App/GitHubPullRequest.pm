@@ -7,6 +7,7 @@ package App::GitHubPullRequest;
 # ABSTRACT: Command-line tool to query GitHub pull requests
 
 use JSON qw(decode_json encode_json);
+use Carp qw(croak);
 
 sub new {
     my ($class) = @_;
@@ -106,7 +107,7 @@ sub show {
         say "Number:  $number";
         say "\n$body\n" if $body;
     }
-    my $comments = $self->_fetch_comments($number);
+    my $comments = $self->_fetch_comments($pr);
     foreach my $comment (@$comments) {
         my $user = $comment->{'user'}->{'login'};
         my $date = $comment->{'updated_at'} || $comment->{'created_at'};
@@ -202,9 +203,8 @@ sub _state {
 }
 
 sub _fetch_comments {
-    my ($self, $number) = @_;
-    my $pr = $self->_fetch_one($number);
-    die("Unable to fetch comments for pull request $number.\n") unless $pr;
+    my ($self, $pr) = @_;
+    croak("Please specify a pull request") unless $pr;
     my $comments_url = $pr->{'comments_url'};
     my $comments = decode_json( _fetch_url($comments_url) );
     return $comments;
@@ -212,7 +212,6 @@ sub _fetch_comments {
 
 sub _fetch_patch {
     my ($self, $number) = @_;
-    my $remote_repo = _find_github_remote();
     my $patch_url = $self->_fetch_one($number)->{'patch_url'};
     return _fetch_url($patch_url);
 }
@@ -220,7 +219,7 @@ sub _fetch_patch {
 sub _fetch_one {
     my ($self, $number) = @_;
     my $remote_repo = _find_github_remote();
-    my $pr_url = 'https://api.github.com/repos/' . $remote_repo . '/pulls/' . $number;
+    my $pr_url = "https://api.github.com/repos/$remote_repo/pulls/$number";
     my $pr = decode_json( _fetch_url($pr_url) );
     return $pr;
 }
@@ -298,7 +297,7 @@ sub _fetch_url {
     die("curl failed to fetch $url with code $rc.\n") if $rc != 0;
     my $code = substr($content, -3, 3, '');
     if ( $code >= 400 ) {
-        die("Fetching URL $url failed with code $code:\n$content\n");
+        die("Fetching URL $url failed with code $code:\n$content");
     }
     return $content;
 }
@@ -335,7 +334,7 @@ sub _patch_url {
     die("curl failed to patch $url with code $rc.\n") if $rc != 0;
     my $code = substr($content, -3, 3, '');
     if ( $code >= 400 ) {
-        die("Patching URL $url failed with code $code:\n$content\n");
+        die("Patching URL $url failed with code $code:\n$content");
     }
     return $content;
 }
@@ -372,7 +371,7 @@ sub _post_url {
     die("curl failed to post to $url with code $rc.\n") if $rc != 0;
     my $code = substr($content, -3, 3, '');
     if ( $code >= 400 ) {
-        die("Posting to URL $url failed with code $code:\n$content\n");
+        die("Posting to URL $url failed with code $code:\n$content");
     }
     return $content;
 }
