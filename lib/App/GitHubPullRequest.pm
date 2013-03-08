@@ -422,10 +422,11 @@ sub _post_url {
     $ prq list closed # not shown by default
     $ prq show 7      # also includes comments
     $ prq patch 7     # can be piped to colordiff if you like colors
+    $ prq help
+
     $ prq close 7
     $ prq open 7
-    $ prq comment 7 "This is good stuff!"
-    $ prq help
+    $ prq comment 7 'This is good stuff!'
 
 
 =head1 INSTALLATION
@@ -434,6 +435,12 @@ Install it by just typing in these few lines in your shell:
 
     $ curl -L http://cpanmin.us | perl - --self-upgrade
     $ cpanm App::GitHubPullRequest
+
+The following external programs are required:
+
+=for :list
+* L<git(1)>
+* L<curl(1)>
 
 
 =head1 CAVEATS
@@ -451,7 +458,8 @@ have a remote that points to github.com for the tool to work.
 
 =for :list
 * L<prq>
-
+* L<GitHub Pull Request documentation|https://help.github.com/articles/using-pull-requests>
+* L<GitHub Pull Request API documentation|http://developer.github.com/v3/pulls/>
 
 =head1 SEMANTIC VERSIONING
 

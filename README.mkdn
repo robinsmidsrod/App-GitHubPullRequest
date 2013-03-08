@@ -12,10 +12,11 @@ version 0.0.6
     $ prq list closed # not shown by default
     $ prq show 7      # also includes comments
     $ prq patch 7     # can be piped to colordiff if you like colors
+    $ prq help
+
     $ prq close 7
     $ prq open 7
-    $ prq comment 7 "This is good stuff!"
-    $ prq help
+    $ prq comment 7 'This is good stuff!'
 
 # INSTALLATION
 
@@ -23,6 +24,11 @@ Install it by just typing in these few lines in your shell:
 
     $ curl -L http://cpanmin.us | perl - --self-upgrade
     $ cpanm App::GitHubPullRequest
+
+The following external programs are required:
+
+- [git(1)](http://man.he.net/man1/git)
+- [curl(1)](http://man.he.net/man1/curl)
 
 # COMMANDS
 
@@ -64,6 +70,19 @@ Creates a comment on the specified pull request with the specified text.
 Calls any of the other listed public methods with specified arguments. This
 is usually called automatically when you invoke [prq](http://search.cpan.org/perldoc?prq).
 
+# DEBUGGING
+
+Set the environment variable PRQ\_DEBUG to a non-zero value to see more
+details, like each API command being executed.
+
+If you want to interact with another GitHub repo than the one in your
+current directory, set the environment variable GITHUB\_REPO to the name of
+the repo in question. Example:
+
+    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest prq list
+
+Be aware, that if that repo is a fork, the program will look for its parent.
+
 # CAVEATS
 
 If you don't have `git config github.user` and `git config github.password`
@@ -77,6 +96,8 @@ have a remote that points to github.com for the tool to work.
 # SEE ALSO
 
 - [prq](http://search.cpan.org/perldoc?prq)
+- [GitHub Pull Request documentation](https://help.github.com/articles/using-pull-requests)
+- [GitHub Pull Request API documentation](http://developer.github.com/v3/pulls/)
 
 # SEMANTIC VERSIONING
 
