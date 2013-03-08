@@ -346,8 +346,8 @@ sub _patch_url {
 
     # Prepare modification request
     my $mime = qq{-H "Content-Type: $mimetype"};
-    $data =~ s{'}{\\'}; # Escape single quotes
-    my $datatosend = qq{-d '$data'};
+    $data =~ s{"}{\\"}g; # Escape all double quotes
+    my $datatosend = qq{-d "$data"};
 
     # Send modification request
     my $cmd = qq{curl -s -w '\%{http_code}' -X PATCH $credentials $mime $datatosend "$url"};
@@ -385,8 +385,8 @@ sub _post_url {
 
     # Prepare modification request
     my $mime = qq{-H "Content-Type: $mimetype"};
-    $data =~ s{'}{\\'}; # Escape single quotes
-    my $datatosend = qq{-d '$data'};
+    $data =~ s{"}{\\"}g; # Escape all double quotes
+    my $datatosend = qq{-d "$data"};
 
     # Send modification request
     my $cmd = qq{curl -s -w '\%{http_code}' -X POST $credentials $mime $datatosend "$url"};
