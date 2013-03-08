@@ -48,9 +48,9 @@ Where command is one of these:
   list [<state>] Show all pull requests (state: open/closed)
   show <number>  Show details for the specific pull request
   patch <number> Fetch a properly formatted patch for the specific pull request
-  comment <number> <text> Create a comment on the specified pull request
 
   login [<user>] [<password>] Login to GitHub and receive an access token
+  comment <number> [<text>]   Create a comment on the specified pull request
   close <number>              Close the specified pull request
   open <number>               Reopen the specified pull request
 
@@ -174,24 +174,63 @@ sub open {
     return 0;
 }
 
-=cmd comment <number> <text>
+=cmd comment <number> [<text>]
 
-Creates a comment on the specified pull request with the specified text.
+Creates a comment on the specified pull request with the specified text. If
+text is not specified, an editor will be opened for you to type in the text.
+
+If your C<EDITOR> environment variable has been set, that editor is used to
+edit the text.  If it has not been set, it will try to use the L<editor(1)>
+external program.  This is usually a symlink set up by your operating system
+to the most recently installed text editor.
 
 =cut
 
 sub comment {
     my ($self, $number, $text) = @_;
     die("Please specify a pull request number.\n") unless $number;
-    die("Please specify some text.\n") unless $text;
     my $remote_repo = _find_github_remote();
+    my $filename;
+    unless ( $text ) {
+        $filename = _tmpfile("$remote_repo-$number");
+        # Find and execute editor on temporary file
+        my $editor = $ENV{'EDITOR'};
+        unless ( $editor ) {
+            _require_binary('editor');
+            $editor = 'editor';
+        }
+        system($editor, $filename);
+        # Fetch text just edited (if any)
+        if ( -r $filename ) {
+            CORE::open my $fh, "<", $filename or die "Can't open $filename: $!";
+            $text = join "", <$fh>;
+            CORE::close $fh;
+        }
+        # Abort if no text found
+        unless ( $text ) {
+            unlink $filename;
+            die("Your comment is empty. Command aborted.\n");
+        }
+    }
     my $url = "https://api.github.com/repos/$remote_repo/issues/$number/comments";
     my $mimetype = 'application/json';
     my $data = encode_json({ "body" => $text });
-    my $comment = decode_json( _post_url($url, $mimetype, $data) );
+    my $comment = eval {
+        decode_json( _post_url($url, $mimetype, $data) );
+    };
+    die($@ . "Comment text saved in '$filename'. Please remove it manually.\n")
+        if $@; # most likely network error
     die("Unable to add comment on pull request $number.\n")
         unless defined $comment;
     say "Comment added. You can view it online here: " . $comment->{'html_url'};
+
+    # Remove temporary file if everything went well
+    if ( defined $filename and -e $filename ) {
+        unlink $filename;
+        warn("Unable to remove temporary file $filename: $!\n")
+            if $!;
+    }
+
     return 0;
 }
 
@@ -319,6 +358,17 @@ sub _prompt {
     system("stty echo") if $hide_echo;
     chomp $input;
     return $input;
+}
+
+# Generate a random temporary filename with the given prefix
+sub _tmpfile {
+    my ($prefix) = @_;
+    $prefix = defined $prefix ? "${prefix}-" : '';
+    $prefix =~ s{[^A-Za-z0-9_-]}{-}g;
+    srand($$ + time);
+    my $random = $$;
+    $random .= int(rand(10)) for 1..10;
+    return "/tmp/prq-$prefix$random";
 }
 
 # Return stdout from external program

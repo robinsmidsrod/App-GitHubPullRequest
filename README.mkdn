@@ -66,9 +66,15 @@ request that has already been merged or closed by the repo owner.  If you
 try to, you'll get an obscure `Validation Failed` error message from the
 GitHub API.
 
-## comment <number> <text>
+## comment <number> \[<text>\]
 
-Creates a comment on the specified pull request with the specified text.
+Creates a comment on the specified pull request with the specified text. If
+text is not specified, an editor will be opened for you to type in the text.
+
+If your `EDITOR` environment variable has been set, that editor is used to
+edit the text.  If it has not been set, it will try to use the [editor(1)](http://man.he.net/man1/editor)
+external program.  This is usually a symlink set up by your operating system
+to the most recently installed text editor.
 
 ## login \[<user>\] \[<password>\]
 
