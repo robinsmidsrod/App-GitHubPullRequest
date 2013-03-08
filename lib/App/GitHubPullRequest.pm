@@ -7,6 +7,7 @@ package App::GitHubPullRequest;
 # ABSTRACT: Command-line tool to query GitHub pull requests
 
 use JSON qw(decode_json encode_json);
+use Carp qw(croak);
 
 sub new {
     my ($class) = @_;
