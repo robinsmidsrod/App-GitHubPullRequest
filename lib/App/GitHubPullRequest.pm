@@ -272,6 +272,25 @@ sub _find_github_remote {
     return $repo;
 }
 
+=head1 DEBUGGING
+
+Set the environment variable PRQ_DEBUG to a non-zero value to see more
+details, like each API command being executed.
+
+If you want to interact with another GitHub repo than the one in your
+current directory, set the environment variable GITHUB_REPO to the name of
+the repo in question. Example:
+
+    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest prq list
+
+Be aware, that if that repo is a fork, the program will look for its parent.
+
+=cut
+
+sub DEBUG {
+    return $ENV{'PRQ_DEBUG'} || 0;
+}
+
 # Fetch the content of a URL
 # If URL starts with https://api.github.com/, use github user+password from
 # your ~/.gitconfig
@@ -292,7 +311,9 @@ sub _fetch_url {
     }
 
     # Fetch information
-    my $content = qx{curl -s -w '\%{http_code}' $credentials "$url"};
+    my $cmd = qq{curl -s -w '\%{http_code}' $credentials "$url"};
+    warn("$cmd\n") if DEBUG;
+    my $content = qx{$cmd};
     my $rc = $? >> 8; # see perldoc perlvar $? entry for details
     die("curl failed to fetch $url with code $rc.\n") if $rc != 0;
     my $code = substr($content, -3, 3, '');
@@ -329,7 +350,9 @@ sub _patch_url {
     my $datatosend = qq{-d '$data'};
 
     # Send modification request
-    my $content = qx{curl -s -w '\%{http_code}' -X PATCH $credentials $mime $datatosend "$url"};
+    my $cmd = qq{curl -s -w '\%{http_code}' -X PATCH $credentials $mime $datatosend "$url"};
+    warn("$cmd\n") if DEBUG;
+    my $content = qx{$cmd};
     my $rc = $? >> 8; # see perldoc perlvar $? entry for details
     die("curl failed to patch $url with code $rc.\n") if $rc != 0;
     my $code = substr($content, -3, 3, '');
@@ -366,7 +389,9 @@ sub _post_url {
     my $datatosend = qq{-d '$data'};
 
     # Send modification request
-    my $content = qx{curl -s -w '\%{http_code}' -X POST $credentials $mime $datatosend "$url"};
+    my $cmd = qq{curl -s -w '\%{http_code}' -X POST $credentials $mime $datatosend "$url"};
+    warn("$cmd\n") if DEBUG;
+    my $content = qx{$cmd};
     my $rc = $? >> 8; # see perldoc perlvar $? entry for details
     die("curl failed to post to $url with code $rc.\n") if $rc != 0;
     my $code = substr($content, -3, 3, '');
