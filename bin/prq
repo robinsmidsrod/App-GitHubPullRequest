@@ -23,6 +23,7 @@ exit $rc;
     $ prq patch 7     # can be piped to colordiff if you like colors
     $ prq help
 
+    $ prq login       # Get access token for commands below
     $ prq close 7
     $ prq open 7
     $ prq comment 7 'This is good stuff!'
@@ -40,14 +41,15 @@ The following external programs are required:
 =for :list
 * L<git(1)>
 * L<curl(1)>
+* L<stty(1)>
 
 
 =head1 CAVEATS
 
-If you don't have C<git config github.user> and C<git config github.password>
-set in your git config, it will use unauthenticated API requests, which has
-a rate-limit of 60 requests. If you add your user + password info it should
-allow 5000 requests before you hit the limit.
+If you don't authenticate with GitHub using the login command, it will use
+unauthenticated API requests where possible, which has a rate-limit of 60
+requests.  If you login first it should allow 5000 requests before you hit
+the limit.
 
 You must be standing in a directory that is a git dir and that directory must
 have a remote that points to github.com for the tool to work.

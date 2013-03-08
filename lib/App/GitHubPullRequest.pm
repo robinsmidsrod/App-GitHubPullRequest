@@ -51,6 +51,8 @@ Where command is one of these:
 
   comment <number> <text> Create a comment on the specified pull request
 
+  login [<user>] [<password>] Login to GitHub and receive an access token
+
   help           Show this page
 
 EOM
@@ -195,6 +197,56 @@ sub comment {
     return 0;
 }
 
+=cmd login [<user>] [<password>]
+
+Logs you in to GitHub and creates a new access token used instead of your
+password.  If you don't specify either of the options, they are looked up in
+your git config github section.  If none of those are found, you'll be
+prompted for them.
+
+=cut
+
+sub login {
+    my ($self, $user, $password) = @_;
+    _require_binary('git');
+    $user     ||= qx{git config github.user}     || _prompt('GitHub username');
+    $password ||= qx{git config github.password} || _prompt('GitHub password', 'hidden');
+    chomp $user;
+    chomp $password;
+    die("Please specify a user name.\n") unless $user;
+    die("Please specify a password.\n")  unless $password;
+    my $url = "https://api.github.com/authorizations";
+    my $mimetype = 'application/json';
+    my $data = encode_json({
+        "scopes"   => [qw( public_repo repo )],
+        "note"     => __PACKAGE__,
+        "note_url" => 'https://metacpan/module/' . __PACKAGE__,
+    });
+    my $auth = decode_json( _post_url($url, $mimetype, $data, $user, $password) );
+    die("Unable to authenticate with GitHub.\n")
+        unless defined $auth;
+    my $token = $auth->{'token'};
+    die("Authentication data does not include a token.\n")
+        unless $token;
+    my $content = qx{git config --global github.prq-token '$token'};
+    my $rc = $? >> 8; # turn into exit code
+    die("git config returned message '$content' and code $rc when trying to store your token.\n")
+        if $rc != 0;
+    say "Access token stored successfully. Go to https://github.com/settings/applications to revoke access.";
+    return 0;
+}
+
+sub _prompt {
+    my ($label, $hide_echo) = @_;
+    print "$label: " if defined $label;
+    _require_binary('stty') if $hide_echo;
+    system("stty -echo") if $hide_echo;
+    my $input = scalar <STDIN>;
+    system("stty echo") if $hide_echo;
+    chomp $input;
+    return $input;
+}
+
 sub _state {
     my ($self, $number, $state) = @_;
     croak("Please specify a pull request number") unless $number;
@@ -316,13 +368,10 @@ sub _fetch_url {
     # See if we should use credentials
     my $credentials = "";
     if ( $url =~ m{^https://api.github.com/} ) {
-        my $user = qx{git config github.user};
-        my $password = qx{git config github.password};
-        chomp $user;
-        chomp $password;
-        if ( $user and $password ) {
-            $credentials = qq{-u "$user:$password"};
-        }
+        _require_binary('git');
+        my $token = qx{git config github.prq-token};
+        chomp $token;
+        $credentials = qq{-H 'Authorization: token $token'} if $token;
     }
 
     # Fetch information
@@ -351,13 +400,12 @@ sub _patch_url {
     # See if we should use credentials
     my $credentials = "";
     if ( $url =~ m{^https://api.github.com/} ) {
-        my $user = qx{git config github.user};
-        my $password = qx{git config github.password};
-        chomp $user;
-        chomp $password;
-        die("You must set 'git config github.user' and 'git config github.password' to modify pull requests.\n")
-            unless $user and $password;
-        $credentials = qq{-u "$user:$password"};
+        _require_binary('git');
+        my $token = qx{git config github.prq-token};
+        chomp $token;
+        die("You must aquire a token with the login command before you can modify information.\n")
+            unless $token;
+        $credentials = qq{-H 'Authorization: token $token'};
     }
 
     # Prepare modification request
@@ -374,6 +422,12 @@ sub _patch_url {
     die("curl failed to patch $url with code $rc.\n") if $rc != 0;
     my $code = substr($content, -3, 3, '');
     if ( $code >= 400 ) {
+        die("If you get 'Validation Failed' error without any reason,"
+          . " most likely the pull request has already been merged or closed by the repo owner.\n"
+          . "URL: $url\n"
+          . "Code: $code\n"
+          . $content
+        ) if $code == 422;
         die("Patching URL $url failed with code $code:\n$content");
     }
     return $content;
@@ -383,7 +437,7 @@ sub _patch_url {
 # If URL starts with https://api.github.com/, use github user+password from
 # your ~/.gitconfig
 sub _post_url {
-    my ($url, $mimetype, $data) = @_;
+    my ($url, $mimetype, $data, $user, $password) = @_;
     croak("Please specify a URL") unless $url;
     croak("Please specify a mimetype") unless $mimetype;
     croak("Please specify some data") unless $data;
@@ -391,13 +445,17 @@ sub _post_url {
     # See if we should use credentials
     my $credentials = "";
     if ( $url =~ m{^https://api.github.com/} ) {
-        my $user = qx{git config github.user};
-        my $password = qx{git config github.password};
-        chomp $user;
-        chomp $password;
-        die("You must set 'git config github.user' and 'git config github.password' to modify pull requests.\n")
-            unless $user and $password;
-        $credentials = qq{-u "$user:$password"};
+        _require_binary('git');
+        my $token = qx{git config github.prq-token};
+        chomp $token;
+        die("You must set 'git config github.prq-token' by using the login command to modify pull requests.\n")
+            unless $token or ( $user and $password );
+        if ( $user and $password ) {
+            $credentials = qq{-u "$user:$password"};
+        }
+        else {
+            $credentials = qq{-H 'Authorization: token $token'} if $token;
+        }
     }
 
     # Prepare modification request
@@ -429,6 +487,7 @@ sub _post_url {
     $ prq patch 7     # can be piped to colordiff if you like colors
     $ prq help
 
+    $ prq login       # Get access token for commands below
     $ prq close 7
     $ prq open 7
     $ prq comment 7 'This is good stuff!'
@@ -446,14 +505,15 @@ The following external programs are required:
 =for :list
 * L<git(1)>
 * L<curl(1)>
+* L<stty(1)>
 
 
 =head1 CAVEATS
 
-If you don't have C<git config github.user> and C<git config github.password>
-set in your git config, it will use unauthenticated API requests, which has
-a rate-limit of 60 requests. If you add your user + password info it should
-allow 5000 requests before you hit the limit.
+If you don't authenticate with GitHub using the login command, it will use
+unauthenticated API requests where possible, which has a rate-limit of 60
+requests.  If you login first it should allow 5000 requests before you hit
+the limit.
 
 You must be standing in a directory that is a git dir and that directory must
 have a remote that points to github.com for the tool to work.

@@ -14,6 +14,7 @@ version 0.0.6
     $ prq patch 7     # can be piped to colordiff if you like colors
     $ prq help
 
+    $ prq login       # Get access token for commands below
     $ prq close 7
     $ prq open 7
     $ prq comment 7 'This is good stuff!'
@@ -29,6 +30,7 @@ The following external programs are required:
 
 - [git(1)](http://man.he.net/man1/git)
 - [curl(1)](http://man.he.net/man1/curl)
+- [stty(1)](http://man.he.net/man1/stty)
 
 # COMMANDS
 
@@ -68,6 +70,13 @@ GitHub API.
 
 Creates a comment on the specified pull request with the specified text.
 
+## login \[<user>\] \[<password>\]
+
+Logs you in to GitHub and creates a new access token used instead of your
+password.  If you don't specify either of the options, they are looked up in
+your git config github section.  If none of those are found, you'll be
+prompted for them.
+
 # METHODS
 
 ## run(@args)
@@ -90,10 +99,10 @@ Be aware, that if that repo is a fork, the program will look for its parent.
 
 # CAVEATS
 
-If you don't have `git config github.user` and `git config github.password`
-set in your git config, it will use unauthenticated API requests, which has
-a rate-limit of 60 requests. If you add your user + password info it should
-allow 5000 requests before you hit the limit.
+If you don't authenticate with GitHub using the login command, it will use
+unauthenticated API requests where possible, which has a rate-limit of 60
+requests.  If you login first it should allow 5000 requests before you hit
+the limit.
 
 You must be standing in a directory that is a git dir and that directory must
 have a remote that points to github.com for the tool to work.
