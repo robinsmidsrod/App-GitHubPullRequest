@@ -238,6 +238,7 @@ sub _fetch_all {
 }
 
 sub _find_github_remote {
+    _require_binary('git');
     # Fetch remotes using git
     my @lines = grep { chomp } qx{git remote -v};
     my $repo;
@@ -270,6 +271,15 @@ sub _find_github_remote {
 
     # Not a fork, use this repo
     return $repo;
+}
+
+# Make sure a program is present in path
+sub _require_binary {
+    my ($bin) = @_;
+    croak("Please specify program to require") unless $bin;
+    system("which $bin >/dev/null");
+    return 1 if $? >> 8 == 0;
+    die("You need the program '$bin' in your path to use this feature.\n");
 }
 
 =head1 DEBUGGING
@@ -311,6 +321,7 @@ sub _fetch_url {
     }
 
     # Fetch information
+    _require_binary('curl');
     my $cmd = qq{curl -s -w '\%{http_code}' $credentials "$url"};
     warn("$cmd\n") if DEBUG;
     my $content = qx{$cmd};
@@ -350,6 +361,7 @@ sub _patch_url {
     my $datatosend = qq{-d "$data"};
 
     # Send modification request
+    _require_binary('curl');
     my $cmd = qq{curl -s -w '\%{http_code}' -X PATCH $credentials $mime $datatosend "$url"};
     warn("$cmd\n") if DEBUG;
     my $content = qx{$cmd};
@@ -389,6 +401,7 @@ sub _post_url {
     my $datatosend = qq{-d "$data"};
 
     # Send modification request
+    _require_binary('curl');
     my $cmd = qq{curl -s -w '\%{http_code}' -X POST $credentials $mime $datatosend "$url"};
     warn("$cmd\n") if DEBUG;
     my $content = qx{$cmd};
