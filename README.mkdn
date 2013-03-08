@@ -53,11 +53,16 @@ Shows the patch associated with the specified pull request number.
 
 ## close <number>
 
-Closes the specified pull request number.
+Closes the specified pull request number. Be aware, you can't close a pull
+request that has already been merged.  If you try to, you'll get an obscure
+`Validation Failed` error message from the GitHub API.
 
 ## open <number>
 
-Reopens the specified pull request number.
+Reopens the specified pull request number. Be aware, you can't reopen a pull
+request that has already been merged or closed by the repo owner.  If you
+try to, you'll get an obscure `Validation Failed` error message from the
+GitHub API.
 
 ## comment <number> <text>
 

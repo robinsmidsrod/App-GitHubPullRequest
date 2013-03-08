@@ -138,7 +138,9 @@ sub patch {
 
 =cmd close <number>
 
-Closes the specified pull request number.
+Closes the specified pull request number. Be aware, you can't close a pull
+request that has already been merged.  If you try to, you'll get an obscure
+C<Validation Failed> error message from the GitHub API.
 
 =cut
 
@@ -154,7 +156,10 @@ sub close {
 
 =cmd open <number>
 
-Reopens the specified pull request number.
+Reopens the specified pull request number. Be aware, you can't reopen a pull
+request that has already been merged or closed by the repo owner.  If you
+try to, you'll get an obscure C<Validation Failed> error message from the
+GitHub API.
 
 =cut
 
