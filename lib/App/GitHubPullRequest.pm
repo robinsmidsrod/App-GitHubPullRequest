@@ -206,11 +206,8 @@ prompted for them.
 
 sub login {
     my ($self, $user, $password) = @_;
-    _require_binary('git');
-    $user     ||= qx{git config github.user}     || _prompt('GitHub username');
-    $password ||= qx{git config github.password} || _prompt('GitHub password', 'hidden');
-    chomp $user;
-    chomp $password;
+    $user     ||= _qx('git', "config github.user")     || _prompt('GitHub username');
+    $password ||= _qx('git', "config github.password") || _prompt('GitHub password', 'hidden');
     die("Please specify a user name.\n") unless $user;
     die("Please specify a password.\n")  unless $password;
     my $url = "https://api.github.com/authorizations";
@@ -226,8 +223,7 @@ sub login {
     my $token = $auth->{'token'};
     die("Authentication data does not include a token.\n")
         unless $token;
-    my $content = qx{git config --global github.prq-token '$token'};
-    my $rc = $? >> 8; # turn into exit code
+    my ($content, $rc) = _run_ext(qw(git config --global github.prq-token), $token);
     die("git config returned message '$content' and code $rc when trying to store your token.\n")
         if $rc != 0;
     say "Access token stored successfully. Go to https://github.com/settings/applications to revoke access.";
@@ -282,13 +278,9 @@ sub _fetch_all {
 }
 
 sub _find_github_remote {
-    _require_binary('git');
-    # Fetch remotes using git
-    my @lines = grep { chomp } qx{git remote -v};
-    my $repo;
-
     # Parse lines from git and use first found github repo
-    foreach my $line (@lines) {
+    my $repo;
+    foreach my $line ( _qx('git', 'remote -v') ) {
         my ($remote, $url, $type) = split /\s+/, $line;
         next unless $type eq '(fetch)'; # only consider fetch remotes
         next unless $url =~ m/github\.com/; # only consider remotes to github
@@ -329,6 +321,33 @@ sub _prompt {
     return $input;
 }
 
+# Return stdout from external program
+# If called in list context, each line will be chomped
+# In scalar context, only last line will be chomped
+sub _qx {
+    my ($cmd, @rest) = @_;
+    _require_binary($cmd);
+    $cmd .= " " . join(" ", @rest) if @rest;
+    return map { chomp; $_ } qx{$cmd}
+        if wantarray;
+    my $content = qx{$cmd};
+    chomp $content;
+    return $content;
+}
+
+# Run an external command and return STDOUT and exit code
+sub _run_ext {
+    croak("Please specify a command line") unless @_;
+    my $cmd = join(" ", @_);
+    my $prg = $_[0];
+    warn("$cmd\n") if DEBUG;
+    _require_binary($prg);
+    CORE::open my $fh, "-|", @_ or die("Can't run command '$cmd': $!");
+    my $stdout = join("", <$fh>);
+    my $rc = $? >> 8; # exit code, see perldoc perlvar for details
+    return $stdout, $rc;
+}
+
 # Make sure a program is present in path
 sub _require_binary {
     my ($bin) = @_;
@@ -363,20 +382,20 @@ sub _get_url {
     croak("Please specify a URL") unless $url;
 
     # See if we should use credentials
-    my $credentials = "";
+    my @credentials;
     if ( $url =~ m{^https://api.github.com/} ) {
-        _require_binary('git');
-        my $token = qx{git config github.prq-token};
-        chomp $token;
-        $credentials = qq{-H 'Authorization: token $token'} if $token;
+        my $token = _qx('git', 'config github.prq-token');
+        @credentials = ( '-H', "Authorization: token $token" ) if $token;
     }
 
-    # Fetch information
-    _require_binary('curl');
-    my $cmd = qq{curl -s -w '\%{http_code}' $credentials "$url"};
-    warn("$cmd\n") if DEBUG;
-    my $content = qx{$cmd};
-    my $rc = $? >> 8; # see perldoc perlvar $? entry for details
+    # Send request
+    my ($content, $rc) = _run_ext(
+        'curl',
+        '-s',                            # be silent
+        '-w', '%{http_code}',            # include HTTP status code at end of stdout
+        @credentials,                    # Logon credentials, if any
+        $url,                            # The URL we're GETing
+    );
     die("curl failed to fetch $url with code $rc.\n") if $rc != 0;
 
     my $code = substr($content, -3, 3, '');
@@ -395,27 +414,25 @@ sub _patch_url {
     croak("Please specify some data") unless $data;
 
     # See if we should use credentials
-    my $credentials = "";
+    my @credentials;
     if ( $url =~ m{^https://api.github.com/} ) {
-        _require_binary('git');
-        my $token = qx{git config github.prq-token};
-        chomp $token;
-        die("You must aquire a token with the login command before you can modify information.\n")
+        my $token = _qx('git', 'config github.prq-token');
+        die("You must login before you can modify information.\n")
             unless $token;
-        $credentials = qq{-H 'Authorization: token $token'};
+        @credentials = ( '-H', "Authorization: token $token" );
     }
 
-    # Prepare modification request
-    my $mime = qq{-H "Content-Type: $mimetype"};
-    $data =~ s{"}{\\"}g; # Escape all double quotes
-    my $datatosend = qq{-d "$data"};
-
-    # Send modification request
-    _require_binary('curl');
-    my $cmd = qq{curl -s -w '\%{http_code}' -X PATCH $credentials $mime $datatosend "$url"};
-    warn("$cmd\n") if DEBUG;
-    my $content = qx{$cmd};
-    my $rc = $? >> 8; # see perldoc perlvar $? entry for details
+    # Send request
+    my ($content, $rc) = _run_ext(
+        'curl',
+        '-s',                            # be silent
+        '-w', '%{http_code}',            # include HTTP status code at end of stdout
+        '-X', 'PATCH',                   # perform an HTTP PATCH
+        '-H', "Content-Type: $mimetype", # What kind of data we're sending
+        '-d', $data,                     # Our data
+        @credentials,                    # Logon credentials, if any
+        $url,                            # The URL we're PATCHing
+    );
     die("curl failed to patch $url with code $rc.\n") if $rc != 0;
 
     my $code = substr($content, -3, 3, '');
@@ -440,32 +457,30 @@ sub _post_url {
     croak("Please specify some data") unless $data;
 
     # See if we should use credentials
-    my $credentials = "";
+    my @credentials;
     if ( $url =~ m{^https://api.github.com/} ) {
-        _require_binary('git');
-        my $token = qx{git config github.prq-token};
-        chomp $token;
-        die("You must set 'git config github.prq-token' by using the login command to modify pull requests.\n")
+        my $token = _qx('git', 'config github.prq-token');
+        die("You must login before you can modify information.\n")
             unless $token or ( $user and $password );
         if ( $user and $password ) {
-            $credentials = qq{-u "$user:$password"};
+            @credentials = ( '-u', "$user:$password" );
         }
         else {
-            $credentials = qq{-H 'Authorization: token $token'} if $token;
+            @credentials = ( '-H', "Authorization: token $token" ) if $token;
         }
     }
 
-    # Prepare modification request
-    my $mime = qq{-H "Content-Type: $mimetype"};
-    $data =~ s{"}{\\"}g; # Escape all double quotes
-    my $datatosend = qq{-d "$data"};
-
-    # Send modification request
-    _require_binary('curl');
-    my $cmd = qq{curl -s -w '\%{http_code}' -X POST $credentials $mime $datatosend "$url"};
-    warn("$cmd\n") if DEBUG;
-    my $content = qx{$cmd};
-    my $rc = $? >> 8; # see perldoc perlvar $? entry for details
+    # Send request
+    my ($content, $rc) = _run_ext(
+        'curl',
+        '-s',                            # be silent
+        '-w', '%{http_code}',            # include HTTP status code at end of stdout
+        '-X', 'POST',                    # perform an HTTP POST
+        '-H', "Content-Type: $mimetype", # What kind of data we're sending
+        '-d', $data,                     # Our data
+        @credentials,                    # Logon credentials, if any
+        $url,                            # The URL we're POSTing to
+    );
     die("curl failed to post to $url with code $rc.\n") if $rc != 0;
 
     my $code = substr($content, -3, 3, '');
