@@ -9,6 +9,8 @@ package App::GitHubPullRequest;
 use JSON qw(decode_json encode_json);
 use Carp qw(croak);
 
+sub DEBUG;
+
 sub new {
     my ($class) = @_;
     return bless {}, $class;
@@ -42,18 +44,15 @@ $0 [<command> <args> ...]
 
 Where command is one of these:
 
-  list [<state>] Show all pull requests (default)
-                     state: open/closed (default: open)
+  help           Show this page
+  list [<state>] Show all pull requests (state: open/closed)
   show <number>  Show details for the specific pull request
   patch <number> Fetch a properly formatted patch for the specific pull request
-  close <number> Close the specified pull request
-  open <number>  Reopen the specified pull request
-
   comment <number> <text> Create a comment on the specified pull request
 
   login [<user>] [<password>] Login to GitHub and receive an access token
-
-  help           Show this page
+  close <number>              Close the specified pull request
+  open <number>               Reopen the specified pull request
 
 EOM
     return 1;
@@ -192,8 +191,7 @@ sub comment {
     my $comment = decode_json( _post_url($url, $mimetype, $data) );
     die("Unable to add comment on pull request $number.\n")
         unless defined $comment;
-    say "Comment added. You can view it online here:\n"
-      . $comment->{'html_url'};
+    say "Comment added. You can view it online here: " . $comment->{'html_url'};
     return 0;
 }
 
@@ -236,17 +234,6 @@ sub login {
     return 0;
 }
 
-sub _prompt {
-    my ($label, $hide_echo) = @_;
-    print "$label: " if defined $label;
-    _require_binary('stty') if $hide_echo;
-    system("stty -echo") if $hide_echo;
-    my $input = scalar <STDIN>;
-    system("stty echo") if $hide_echo;
-    chomp $input;
-    return $input;
-}
-
 sub _state {
     my ($self, $number, $state) = @_;
     croak("Please specify a pull request number") unless $number;
@@ -263,21 +250,21 @@ sub _fetch_comments {
     my ($self, $pr) = @_;
     croak("Please specify a pull request") unless $pr;
     my $comments_url = $pr->{'comments_url'};
-    my $comments = decode_json( _fetch_url($comments_url) );
+    my $comments = decode_json( _get_url($comments_url) );
     return $comments;
 }
 
 sub _fetch_patch {
     my ($self, $number) = @_;
     my $patch_url = $self->_fetch_one($number)->{'patch_url'};
-    return _fetch_url($patch_url);
+    return _get_url($patch_url);
 }
 
 sub _fetch_one {
     my ($self, $number) = @_;
     my $remote_repo = _find_github_remote();
     my $pr_url = "https://api.github.com/repos/$remote_repo/pulls/$number";
-    my $pr = decode_json( _fetch_url($pr_url) );
+    my $pr = decode_json( _get_url($pr_url) );
     return $pr;
 }
 
@@ -286,7 +273,7 @@ sub _fetch_all {
     $state ||= 'open';
     my $remote_repo = _find_github_remote();
     my $pulls_url = "https://api.github.com/repos/$remote_repo/pulls?state=$state";
-    my $pull_requests = decode_json( _fetch_url($pulls_url) );
+    my $pull_requests = decode_json( _get_url($pulls_url) );
     return {
         "repo"           => $remote_repo,
         "state"          => $state,
@@ -318,7 +305,7 @@ sub _find_github_remote {
 
     # Fetch repo information
     my $repo_url = "https://api.github.com/repos/$repo";
-    my $repo_info = decode_json( _fetch_url( $repo_url ) );
+    my $repo_info = decode_json( _get_url( $repo_url ) );
     die("Unable to fetch repo information for $repo_url.\n")
         unless $repo_info;
 
@@ -330,12 +317,24 @@ sub _find_github_remote {
     return $repo;
 }
 
+# Ask the user for some information
+sub _prompt {
+    my ($label, $hide_echo) = @_;
+    print "$label: " if defined $label;
+    _require_binary('stty') if $hide_echo;
+    system("stty -echo") if $hide_echo;
+    my $input = scalar <STDIN>;
+    system("stty echo") if $hide_echo;
+    chomp $input;
+    return $input;
+}
+
 # Make sure a program is present in path
 sub _require_binary {
     my ($bin) = @_;
     croak("Please specify program to require") unless $bin;
     system("which $bin >/dev/null");
-    return 1 if $? >> 8 == 0;
+    return 1 if $? >> 8 == 0; # exit code is 0
     die("You need the program '$bin' in your path to use this feature.\n");
 }
 
@@ -358,10 +357,8 @@ sub DEBUG {
     return $ENV{'PRQ_DEBUG'} || 0;
 }
 
-# Fetch the content of a URL
-# If URL starts with https://api.github.com/, use github user+password from
-# your ~/.gitconfig
-sub _fetch_url {
+# Perform HTTP GET
+sub _get_url {
     my ($url) = @_;
     croak("Please specify a URL") unless $url;
 
@@ -381,16 +378,16 @@ sub _fetch_url {
     my $content = qx{$cmd};
     my $rc = $? >> 8; # see perldoc perlvar $? entry for details
     die("curl failed to fetch $url with code $rc.\n") if $rc != 0;
+
     my $code = substr($content, -3, 3, '');
     if ( $code >= 400 ) {
         die("Fetching URL $url failed with code $code:\n$content");
     }
+
     return $content;
 }
 
-# Send a PATCH request to a URL
-# If URL starts with https://api.github.com/, use github user+password from
-# your ~/.gitconfig
+# Perform HTTP PATCH
 sub _patch_url {
     my ($url, $mimetype, $data) = @_;
     croak("Please specify a URL") unless $url;
@@ -420,6 +417,7 @@ sub _patch_url {
     my $content = qx{$cmd};
     my $rc = $? >> 8; # see perldoc perlvar $? entry for details
     die("curl failed to patch $url with code $rc.\n") if $rc != 0;
+
     my $code = substr($content, -3, 3, '');
     if ( $code >= 400 ) {
         die("If you get 'Validation Failed' error without any reason,"
@@ -430,12 +428,11 @@ sub _patch_url {
         ) if $code == 422;
         die("Patching URL $url failed with code $code:\n$content");
     }
+
     return $content;
 }
 
-# Send a POST request to a URL
-# If URL starts with https://api.github.com/, use github user+password from
-# your ~/.gitconfig
+# Perform HTTP POST
 sub _post_url {
     my ($url, $mimetype, $data, $user, $password) = @_;
     croak("Please specify a URL") unless $url;
@@ -470,10 +467,12 @@ sub _post_url {
     my $content = qx{$cmd};
     my $rc = $? >> 8; # see perldoc perlvar $? entry for details
     die("curl failed to post to $url with code $rc.\n") if $rc != 0;
+
     my $code = substr($content, -3, 3, '');
     if ( $code >= 400 ) {
         die("Posting to URL $url failed with code $code:\n$content");
     }
+
     return $content;
 }
 
