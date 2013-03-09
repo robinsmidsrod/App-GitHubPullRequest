@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # ABSTRACT: Command-line tool to query GitHub pull requests
-# PODNAME: prq
+# PODNAME: git pull-request
 
 use strict;
 use warnings;
@@ -17,17 +17,17 @@ exit $rc;
 
 =head1 SYNOPSIS
 
-    $ prq
-    $ prq list closed # not shown by default
-    $ prq show 7      # also includes comments
-    $ prq patch 7     # can be piped to colordiff if you like colors
-    $ prq checkout 7  # create upstream tracking branch pr/7
-    $ prq help
+    $ git pull-request
+    $ git pull-request list closed # not shown by default
+    $ git pull-request show 7      # also includes comments
+    $ git pull-request patch 7     # can be piped to colordiff if you like colors
+    $ git pull-request checkout 7  # create upstream tracking branch pr/7
+    $ git pull-request help
 
-    $ prq login       # Get access token for commands below
-    $ prq close 7
-    $ prq open 7
-    $ prq comment 7 'This is good stuff!'
+    $ git pull-request login       # Get access token for commands below
+    $ git pull-request close 7
+    $ git pull-request open 7
+    $ git pull-request comment 7 'This is good stuff!'
 
 
 =head1 INSTALLATION
