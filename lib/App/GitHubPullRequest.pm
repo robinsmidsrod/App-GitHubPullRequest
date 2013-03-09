@@ -476,6 +476,7 @@ sub _run_ext {
     _require_binary($prg);
     CORE::open my $fh, "-|", @_ or die("Can't run command '$cmd': $!");
     my $stdout = join("", <$fh>);
+    CORE::close $fh;
     my $rc = $? >> 8; # exit code, see perldoc perlvar for details
     return $stdout, $rc;
 }
