@@ -21,6 +21,7 @@ exit $rc;
     $ prq list closed # not shown by default
     $ prq show 7      # also includes comments
     $ prq patch 7     # can be piped to colordiff if you like colors
+    $ prq checkout 7  # create upstream tracking branch pr/7
     $ prq help
 
     $ prq login       # Get access token for commands below

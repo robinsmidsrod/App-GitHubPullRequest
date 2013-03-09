@@ -44,10 +44,11 @@ $0 [<command> <args> ...]
 
 Where command is one of these:
 
-  help           Show this page
-  list [<state>] Show all pull requests (state: open/closed)
-  show <number>  Show details for the specific pull request
-  patch <number> Fetch a properly formatted patch for the specific pull request
+  help              Show this page
+  list [<state>]    Show all pull requests (state: open/closed)
+  show <number>     Show details for the specified pull request
+  patch <number>    Fetch a properly formatted patch for specified pull request
+  checkout <number> Create tracking branch for specified pull request
 
   login [<user>] [<password>] Login to GitHub and receive an access token
   comment <number> [<text>]   Create a comment on the specified pull request
@@ -139,21 +140,82 @@ sub patch {
 
 =cmd checkout <number>
 
-Create a remote tracking the contributing repository and checkout the pull
-request reference.
+Checks out the specified pull request in a dedicated tracking branch.
+If the remote repo is not already specified in your git config, it will be
+added and the branch in question will be fetched.
 
 =cut
 
 sub checkout {
     my ($self, $number) = @_;
     die("Please specify a pull request number.\n") unless $number;
-    my $prq = $self->_fetch_one($number);
-    my $remote = $prq->{head}{repo}{git_url};
-    my $branch = $prq->{head}{'ref'};
-    my $contributor = $prq->{user}{login};
-    _qx('git', "remote add --fetch --track $branch $contributor $remote")
-        unless grep {/$contributor/} _qx('git', "remote");
-    _qx('git', "checkout remotes/$contributor/$branch");
+    my $pr = $self->_fetch_one($number);
+    die("Unable to fetch pull request $number.\n")
+        unless defined $pr;
+
+    # Get required contributor branch info
+    my $head_repo   = $pr->{'head'}->{'repo'}->{'git_url'};
+    my $head_branch = $pr->{'head'}->{'ref'};
+    my $head_user   = $pr->{'head'}->{'user'}->{'login'};
+
+    # Check if the remote already exists in our repo
+    my $head_remote;
+    foreach my $line ( _qx("git", "remote -v") ) {
+        my ($remote, $url, $type) = split /\s+/, $line;
+        next unless $type eq '(fetch)'; # only consider fetch remotes
+        if ( $url eq $head_repo ) {
+            $head_remote = $remote;
+            last;
+        }
+    }
+
+    if ( $head_remote ) {
+        # Remote already exists, try to update its state
+        unless ( _qx(qw(git branch --list -r), qq{"$head_remote/$head_branch"}) ) {
+            # Create a new tracking branch, because one doesn't already exist
+            my ($content, $rc) = _run_ext(
+                qw(git remote set-branches),
+                '--add',        # don't remove any other existing tracking branches
+                $head_remote,   # our remote's name/alias
+                $head_branch,   # the ref we want to track
+            );
+            die("git failed with error $rc when trying to add tracking branch"
+              . " to existing remote.\n")
+                if $rc != 0;
+        }
+
+        # Fetch changes from just added remote
+        say "Fetching changes from '$head_remote/$head_branch'";
+        my ($content, $rc) = _run_ext(
+            qw(git fetch),
+            $head_remote,
+        );
+        die("git failed with error $rc when trying to update remote.\n")
+            if $rc != 0;
+    }
+    else {
+        # Create and fetch the branch info if it doesn't exist already
+        $head_remote = $head_user;
+        my ($content, $rc) = _run_ext(
+            qw(git remote add),
+            '-f',                    # only fetch specific refs
+            '-t', $head_branch,      # add only a ref for this ref, not all
+            $head_remote,            # what we'll name our remote
+            $head_repo,              # URL to the head repo
+        );
+        die("git failed with error $rc when trying to add remote.\n")
+            if $rc != 0;
+    }
+
+    # Actually checkout the ref we just updated as pr/<number>
+    my ($content, $rc) = _run_ext(
+        qw(git checkout),
+        '-b', "pr/$number",
+        '--track', "$head_remote/$head_branch",
+    );
+    die("git failed with error $rc when trying to check out branch.\n")
+        if $rc != 0;
+
     return 0;
 }
 
@@ -569,6 +631,7 @@ sub _post_url {
     $ prq list closed # not shown by default
     $ prq show 7      # also includes comments
     $ prq patch 7     # can be piped to colordiff if you like colors
+    $ prq checkout 7  # create upstream tracking branch pr/7
     $ prq help
 
     $ prq login       # Get access token for commands below
