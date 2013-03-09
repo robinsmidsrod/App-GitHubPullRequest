@@ -151,7 +151,8 @@ sub checkout {
     my $remote = $prq->{head}{repo}{git_url};
     my $branch = $prq->{head}{'ref'};
     my $contributor = $prq->{user}{login};
-    _qx('git', "remote add --fetch --track $branch $contributor $remote");
+    _qx('git', "remote add --fetch --track $branch $contributor $remote")
+        unless grep {/$contributor/} _qx('git', "remote");
     _qx('git', "checkout remotes/$contributor/$branch");
     return 0;
 }
