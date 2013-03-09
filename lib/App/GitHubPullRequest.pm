@@ -137,6 +137,25 @@ sub patch {
     return 0;
 }
 
+=cmd checkout <number>
+
+Create a remote tracking the contributing repository and checkout the pull
+request reference.
+
+=cut
+
+sub checkout {
+    my ($self, $number) = @_;
+    die("Please specify a pull request number.\n") unless $number;
+    my $prq = $self->_fetch_one($number);
+    my $remote = $prq->{head}{repo}{git_url};
+    my $branch = $prq->{head}{'ref'};
+    my $contributor = $prq->{user}{login};
+    _qx('git', "remote add --fetch --track $branch $contributor $remote");
+    _qx('git', "checkout remotes/$contributor/$branch");
+    return 0;
+}
+
 =cmd close <number>
 
 Closes the specified pull request number. Be aware, you can't close a pull
