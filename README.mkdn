@@ -8,17 +8,17 @@ version 0.2.0
 
 # SYNOPSIS
 
-    $ git pull-request
-    $ git pull-request list closed # not shown by default
-    $ git pull-request show 7      # also includes comments
-    $ git pull-request patch 7     # can be piped to colordiff if you like colors
-    $ git pull-request checkout 7  # create upstream tracking branch pr/7
-    $ git pull-request help
+    $ git pr
+    $ git pr list closed # not shown by default
+    $ git pr show 7      # also includes comments
+    $ git pr patch 7     # can be piped to colordiff if you like colors
+    $ git pr checkout 7  # create upstream tracking branch pr/7
+    $ git pr help
 
-    $ git pull-request login       # Get access token for commands below
-    $ git pull-request close 7
-    $ git pull-request open 7
-    $ git pull-request comment 7 'This is good stuff!'
+    $ git pr login       # Get access token for commands below
+    $ git pr close 7
+    $ git pr open 7
+    $ git pr comment 7 'This is good stuff!'
 
 # INSTALLATION
 
@@ -95,7 +95,7 @@ prompted for them.
 ## run(@args)
 
 Calls any of the other listed public methods with specified arguments. This
-is usually called automatically when you invoke [git-pull-request](http://search.cpan.org/perldoc?git-pull-request).
+is usually called automatically when you invoke [git-pr](http://search.cpan.org/perldoc?git-pr).
 
 # DEBUGGING
 
@@ -106,7 +106,7 @@ If you want to interact with another GitHub repo than the one in your
 current directory, set the environment variable GITHUB\_REPO to the name of
 the repo in question. Example:
 
-    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest git pull-request list
+    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest git pr list
 
 Be aware, that if that repo is a fork, the program will look for its parent.
 
@@ -122,7 +122,7 @@ have a remote that points to github.com for the tool to work.
 
 # SEE ALSO
 
-- [git-pull-request](http://search.cpan.org/perldoc?git-pull-request)
+- [git-pr](http://search.cpan.org/perldoc?git-pr)
 - [GitHub Pull Request documentation](https://help.github.com/articles/using-pull-requests)
 - [GitHub Pull Request API documentation](http://developer.github.com/v3/pulls/)
 
