@@ -19,7 +19,7 @@ sub new {
 =method run(@args)
 
 Calls any of the other listed public methods with specified arguments. This
-is usually called automatically when you invoke L<prq>.
+is usually called automatically when you invoke L<git-pr>.
 
 =cut
 
@@ -344,7 +344,7 @@ sub login {
     my $token = $auth->{'token'};
     die("Authentication data does not include a token.\n")
         unless $token;
-    my ($content, $rc) = _run_ext(qw(git config --global github.prq-token), $token);
+    my ($content, $rc) = _run_ext(qw(git config --global github.git-pr-token), $token);
     die("git config returned message '$content' and code $rc when trying to store your token.\n")
         if $rc != 0;
     say "Access token stored successfully. Go to https://github.com/settings/applications to revoke access.";
@@ -450,7 +450,7 @@ sub _tmpfile {
     srand($$ + time);
     my $random = $$;
     $random .= int(rand(10)) for 1..10;
-    return "/tmp/prq-$prefix$random";
+    return "/tmp/git-pr-$prefix$random";
 }
 
 # Return stdout from external program
@@ -499,7 +499,7 @@ If you want to interact with another GitHub repo than the one in your
 current directory, set the environment variable GITHUB_REPO to the name of
 the repo in question. Example:
 
-    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest prq list
+    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest git pr list
 
 Be aware, that if that repo is a fork, the program will look for its parent.
 
@@ -517,7 +517,7 @@ sub _get_url {
     # See if we should use credentials
     my @credentials;
     if ( $url =~ m{^https://api.github.com/} ) {
-        my $token = _qx('git', 'config github.prq-token');
+        my $token = _qx('git', 'config github.git-pr-token');
         @credentials = ( '-H', "Authorization: token $token" ) if $token;
     }
 
@@ -549,7 +549,7 @@ sub _patch_url {
     # See if we should use credentials
     my @credentials;
     if ( $url =~ m{^https://api.github.com/} ) {
-        my $token = _qx('git', 'config github.prq-token');
+        my $token = _qx('git', 'config github.git-pr-token');
         die("You must login before you can modify information.\n")
             unless $token;
         @credentials = ( '-H', "Authorization: token $token" );
@@ -592,7 +592,7 @@ sub _post_url {
     # See if we should use credentials
     my @credentials;
     if ( $url =~ m{^https://api.github.com/} ) {
-        my $token = _qx('git', 'config github.prq-token');
+        my $token = _qx('git', 'config github.git-pr-token');
         die("You must login before you can modify information.\n")
             unless $token or ( $user and $password );
         if ( $user and $password ) {
@@ -628,17 +628,17 @@ sub _post_url {
 
 =head1 SYNOPSIS
 
-    $ prq
-    $ prq list closed # not shown by default
-    $ prq show 7      # also includes comments
-    $ prq patch 7     # can be piped to colordiff if you like colors
-    $ prq checkout 7  # create upstream tracking branch pr/7
-    $ prq help
+    $ git pr
+    $ git pr list closed # not shown by default
+    $ git pr show 7      # also includes comments
+    $ git pr patch 7     # can be piped to colordiff if you like colors
+    $ git pr checkout 7  # create upstream tracking branch pr/7
+    $ git pr help
 
-    $ prq login       # Get access token for commands below
-    $ prq close 7
-    $ prq open 7
-    $ prq comment 7 'This is good stuff!'
+    $ git pr login       # Get access token for commands below
+    $ git pr close 7
+    $ git pr open 7
+    $ git pr comment 7 'This is good stuff!'
 
 
 =head1 INSTALLATION
@@ -670,7 +670,7 @@ have a remote that points to github.com for the tool to work.
 =head1 SEE ALSO
 
 =for :list
-* L<prq>
+* L<git-pr>
 * L<GitHub Pull Request documentation|https://help.github.com/articles/using-pull-requests>
 * L<GitHub Pull Request API documentation|http://developer.github.com/v3/pulls/>
 
