@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 
 # ABSTRACT: Command-line tool to query GitHub pull requests
-# PODNAME: git pr
+# PODNAME: git-pr
 
 use strict;
 use warnings;

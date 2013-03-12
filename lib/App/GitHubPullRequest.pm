@@ -344,7 +344,7 @@ sub login {
     my $token = $auth->{'token'};
     die("Authentication data does not include a token.\n")
         unless $token;
-    my ($content, $rc) = _run_ext(qw(git config --global github.git-pr-token), $token);
+    my ($content, $rc) = _run_ext(qw(git config --global github.pr-token), $token);
     die("git config returned message '$content' and code $rc when trying to store your token.\n")
         if $rc != 0;
     say "Access token stored successfully. Go to https://github.com/settings/applications to revoke access.";
@@ -517,7 +517,7 @@ sub _get_url {
     # See if we should use credentials
     my @credentials;
     if ( $url =~ m{^https://api.github.com/} ) {
-        my $token = _qx('git', 'config github.git-pr-token');
+        my $token = _qx('git', 'config github.pr-token');
         @credentials = ( '-H', "Authorization: token $token" ) if $token;
     }
 
@@ -549,7 +549,7 @@ sub _patch_url {
     # See if we should use credentials
     my @credentials;
     if ( $url =~ m{^https://api.github.com/} ) {
-        my $token = _qx('git', 'config github.git-pr-token');
+        my $token = _qx('git', 'config github.pr-token');
         die("You must login before you can modify information.\n")
             unless $token;
         @credentials = ( '-H', "Authorization: token $token" );
@@ -592,7 +592,7 @@ sub _post_url {
     # See if we should use credentials
     my @credentials;
     if ( $url =~ m{^https://api.github.com/} ) {
-        my $token = _qx('git', 'config github.git-pr-token');
+        my $token = _qx('git', 'config github.pr-token');
         die("You must login before you can modify information.\n")
             unless $token or ( $user and $password );
         if ( $user and $password ) {
