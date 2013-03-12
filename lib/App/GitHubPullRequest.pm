@@ -8,6 +8,7 @@ package App::GitHubPullRequest;
 
 use JSON qw(decode_json encode_json);
 use Carp qw(croak);
+use Encode qw(encode_utf8);
 
 sub DEBUG;
 
@@ -77,8 +78,7 @@ sub list {
     }
     foreach my $pr ( @{ $prs->{"pull_requests"} } ) {
         my $number = $pr->{"number"};
-        my $title = $pr->{"title"};
-        my $body = $pr->{"body"};
+        my $title = encode_utf8( $pr->{"title"} );
         my $date = $pr->{"updated_at"} || $pr->{'created_at'};
         say join(" ", $number, $date, $title);
     }
@@ -100,8 +100,8 @@ sub show {
         unless defined $pr;
     {
         my $user = $pr->{'user'}->{'login'};
-        my $title = $pr->{"title"};
-        my $body = $pr->{"body"};
+        my $title = encode_utf8( $pr->{"title"} );
+        my $body = encode_utf8( $pr->{"body"} );
         my $date = $pr->{"updated_at"} || $pr->{'created_at'};
         say "Date:    $date";
         say "From:    $user";
@@ -113,7 +113,7 @@ sub show {
     foreach my $comment (@$comments) {
         my $user = $comment->{'user'}->{'login'};
         my $date = $comment->{'updated_at'} || $comment->{'created_at'};
-        my $body = $comment->{'body'};
+        my $body = encode_utf8( $comment->{'body'} );
         say "-" x 79;
         say "Date: $date";
         say "From: $user";

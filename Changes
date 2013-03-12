@@ -2,6 +2,7 @@ Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
     - Renamed prq to git-pr for git integration (PR#5)
+    - Fixed some encoding bugs on output
 
 0.2.0     2013-03-09 11:37:12 Europe/Oslo
     - Added checkout command (PR#4)
