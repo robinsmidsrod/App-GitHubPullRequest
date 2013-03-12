@@ -300,7 +300,7 @@ sub comment {
     my $comment = eval {
         decode_json( _post_url($url, $mimetype, $data) );
     };
-    die($@ . "Comment text saved in '$filename'. Please remove it manually.\n")
+    die($@ . ( defined $filename ? "Comment text saved in '$filename'. Please remove it manually." : "" ) ."\n")
         if $@; # most likely network error
     die("Unable to add comment on pull request $number.\n")
         unless defined $comment;
