@@ -1,6 +1,8 @@
 Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
+
+0.3.1     2013-03-15 16:10:15 Europe/Oslo
     - Changed debug environment variable from PRQ_DEBUG to GIT_PR_DEBUG
     - Documentation cleanup
 
