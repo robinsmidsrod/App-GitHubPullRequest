@@ -430,9 +430,12 @@ sub _fetch_all {
     };
 }
 
-sub _find_github_remote {
-    # Parse lines from git and use first found github repo
+sub _find_remote_repo {
+    return $ENV{"GITHUB_REPO"} if $ENV{'GITHUB_REPO'};
+
     my $repo;
+
+    # Parse lines from git and use first found github repo
     foreach my $line ( _qx('git', 'remote -v') ) {
         my ($remote, $url, $type) = split /\s+/, $line;
         next unless $type eq '(fetch)'; # only consider fetch remotes
@@ -442,17 +445,23 @@ sub _find_github_remote {
             last;
         }
     }
-
-    # Allow override for testing
-    $repo = $ENV{"GITHUB_REPO"} if $ENV{'GITHUB_REPO'};
     die("No valid GitHub remote repo found.\n")
         unless $repo;
+    return $repo;
+}
 
-    # Fetch repo information
+sub _fetch_repo_information {
+    my ($repo) = @_;
     my $repo_url = "https://api.github.com/repos/$repo";
     my $repo_info = decode_json( _get_url( $repo_url ) );
     die("Unable to fetch repo information for $repo_url.\n")
         unless $repo_info;
+    return $repo_info;
+}
+
+sub _find_github_remote {
+    my $repo = _find_remote_repo();
+    my $repo_info = _fetch_repo_information($repo);
 
     # Return the parent repo if repo is a fork
     return $repo_info->{'parent'}->{'full_name'}
@@ -463,28 +472,8 @@ sub _find_github_remote {
 }
 
 sub _find_master_branch {
-    my $repo;
-    foreach my $line ( _qx('git', 'remote -v') ) {
-        my ($remote, $url, $type) = split /\s+/, $line;
-        next unless $type eq '(fetch)'; # only consider fetch remotes
-        next unless $url =~ m/github\.com/; # only consider remotes to github
-        if ( $url =~ m{github.com[:/](.+?)(?:\.git)?$} ) {
-            $repo = $1;
-            last;
-        }
-    }
-
-    # Allow override for testing
-    $repo = $ENV{"GITHUB_REPO"} if $ENV{'GITHUB_REPO'};
-    die("No valid GitHub remote repo found.\n")
-        unless $repo;
-
-    # Fetch repo information
-    my $repo_url = "https://api.github.com/repos/$repo";
-    my $repo_info = decode_json( _get_url( $repo_url ) );
-    die("Unable to fetch repo information for $repo_url.\n")
-        unless $repo_info;
-
+    my $repo = _find_remote_repo();
+    my $repo_info = _fetch_repo_information($repo);
     return $repo_info->{'master_branch'} // 'master';
 }
 
