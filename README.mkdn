@@ -4,7 +4,7 @@ App::GitHubPullRequest - Command-line tool to query GitHub pull requests
 
 # VERSION
 
-version 0.3.0
+version 0.3.1
 
 # SYNOPSIS
 
@@ -92,15 +92,25 @@ prompted for them.
 
 # METHODS
 
+## new
+
+Constructor. Takes no parameters.
+
 ## run(@args)
 
 Calls any of the other listed public methods with specified arguments. This
 is usually called automatically when you invoke [git-pr](http://search.cpan.org/perldoc?git-pr).
 
-# DEBUGGING
+# FUNCTIONS
 
-Set the environment variable PRQ\_DEBUG to a non-zero value to see more
+## DEBUG
+
+Returns true if we're in debug mode.
+
+Set the environment variable GIT\_PR\_DEBUG to a non-zero value to see more
 details, like each API command being executed.
+
+# DEBUGGING
 
 If you want to interact with another GitHub repo than the one in your
 current directory, set the environment variable GITHUB\_REPO to the name of

@@ -12,6 +12,12 @@ use Encode qw(encode_utf8);
 
 sub DEBUG;
 
+=method new
+
+Constructor. Takes no parameters.
+
+=cut
+
 sub new {
     my ($class) = @_;
     return bless {}, $class;
@@ -227,7 +233,7 @@ C<Validation Failed> error message from the GitHub API.
 
 =cut
 
-sub close {
+sub close { ## no critic (Subroutines::ProhibitBuiltinHomonyms)
     my ($self, $number) = @_;
     die("Please specify a pull request number.\n") unless $number;
     my $pr = $self->_state($number, 'closed');
@@ -246,7 +252,7 @@ GitHub API.
 
 =cut
 
-sub open {
+sub open { ## no critic (Subroutines::ProhibitBuiltinHomonyms)
     my ($self, $number) = @_;
     die("Please specify a pull request number.\n") unless $number;
     my $pr = $self->_state($number, 'open');
@@ -468,6 +474,7 @@ sub _qx {
 }
 
 # Run an external command and return STDOUT and exit code
+## no critic (Subroutines::RequireArgUnpacking)
 sub _run_ext {
     croak("Please specify a command line") unless @_;
     my $cmd = join(" ", @_);
@@ -480,6 +487,7 @@ sub _run_ext {
     my $rc = $? >> 8; # exit code, see perldoc perlvar for details
     return $stdout, $rc;
 }
+## use critic
 
 # Make sure a program is present in path
 sub _require_binary {
@@ -490,23 +498,17 @@ sub _require_binary {
     die("You need the program '$bin' in your path to use this feature.\n");
 }
 
-=head1 DEBUGGING
+=func DEBUG
 
-Set the environment variable PRQ_DEBUG to a non-zero value to see more
+Returns true if we're in debug mode.
+
+Set the environment variable GIT_PR_DEBUG to a non-zero value to see more
 details, like each API command being executed.
-
-If you want to interact with another GitHub repo than the one in your
-current directory, set the environment variable GITHUB_REPO to the name of
-the repo in question. Example:
-
-    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest git pr list
-
-Be aware, that if that repo is a fork, the program will look for its parent.
 
 =cut
 
 sub DEBUG {
-    return $ENV{'PRQ_DEBUG'} || 0;
+    return $ENV{'GIT_PR_DEBUG'} || 0;
 }
 
 # Perform HTTP GET
@@ -654,6 +656,17 @@ The following external programs are required:
 * L<git(1)>
 * L<curl(1)>
 * L<stty(1)>
+
+
+=head1 DEBUGGING
+
+If you want to interact with another GitHub repo than the one in your
+current directory, set the environment variable GITHUB_REPO to the name of
+the repo in question. Example:
+
+    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest git pr list
+
+Be aware, that if that repo is a fork, the program will look for its parent.
 
 
 =head1 CAVEATS
