@@ -225,6 +225,32 @@ sub checkout {
     return 0;
 }
 
+=cmd create
+
+Creates a new pull request.
+
+=cut
+
+sub create {
+    my ($self, $title, $body) = @_;
+
+    my $remote_repo = _find_github_remote();
+    my $base = _find_master_branch();
+    my $head = _qx('git', 'rev-parse', '--abbrev-ref', 'HEAD');
+
+    my $url = "https://api.github.com/repos/$remote_repo/pulls";
+    my $mimetype = 'application/json';
+    my $data = encode_json({
+        title => $title // "Merge $head into $base.",
+        body => $body // "Please merge $head into $base.",
+        base => $base,
+        head => $head,
+    });
+    my $pr = decode_json( _post_url($url, $mimetype, $data) );
+    say "Created PR $pr->{'number'} at $pr->{'html_url'}";
+    return 0;
+}
+
 =cmd close <number>
 
 Closes the specified pull request number. Be aware, you can't close a pull
@@ -434,6 +460,32 @@ sub _find_github_remote {
 
     # Not a fork, use this repo
     return $repo;
+}
+
+sub _find_master_branch {
+    my $repo;
+    foreach my $line ( _qx('git', 'remote -v') ) {
+        my ($remote, $url, $type) = split /\s+/, $line;
+        next unless $type eq '(fetch)'; # only consider fetch remotes
+        next unless $url =~ m/github\.com/; # only consider remotes to github
+        if ( $url =~ m{github.com[:/](.+?)(?:\.git)?$} ) {
+            $repo = $1;
+            last;
+        }
+    }
+
+    # Allow override for testing
+    $repo = $ENV{"GITHUB_REPO"} if $ENV{'GITHUB_REPO'};
+    die("No valid GitHub remote repo found.\n")
+        unless $repo;
+
+    # Fetch repo information
+    my $repo_url = "https://api.github.com/repos/$repo";
+    my $repo_info = decode_json( _get_url( $repo_url ) );
+    die("Unable to fetch repo information for $repo_url.\n")
+        unless $repo_info;
+
+    return $repo_info->{'master_branch'} // 'master';
 }
 
 # Ask the user for some information
