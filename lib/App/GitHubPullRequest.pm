@@ -11,6 +11,7 @@ package App::GitHubPullRequest;
 use JSON qw(decode_json encode_json);
 use Carp qw(croak);
 use Encode qw(encode_utf8);
+use File::Spec;
 
 use constant DEBUG => $ENV{'GIT_PR_DEBUG'} || 0;
 
@@ -498,9 +499,20 @@ sub _require_binary {
     croak("Please specify program to require") unless $bin;
     state %cache;
     unless (exists $cache{$bin}) {
-        warn("Checking if '$bin' exists in path.\n") if DEBUG;
-        system("which $bin >/dev/null");
-        $cache{$bin} = ( $? >> 8 == 0 ) ? 1 : 0; # found if exit code is 0
+        # Cache miss, let's see if we can find that program
+        warn("Checking if '$bin' exists in path\n") if DEBUG;
+        # Figure out path elements in a cross-platform way and go through
+        # each and check if it has the executable program in it
+        my @path = File::Spec->path();
+        while (my $dir = shift @path) {
+            my $file = File::Spec->catfile($dir, $bin);
+            warn("Looking for executable bit on '$file'\n") if DEBUG;
+            ## no critic (ValuesAndExpressions::ProhibitCommaSeparatedStatements)
+            $cache{$bin} = $file, last if -x $file;
+            ## use critic
+            $cache{$bin} = 0;
+        }
+        warn("'$bin' was found at '$cache{$bin}'\n") if DEBUG and $cache{$bin};
     }
     return 1 if $cache{$bin};
     die("You need the program '$bin' in your path to use this feature.\n");
