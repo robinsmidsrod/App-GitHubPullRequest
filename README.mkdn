@@ -60,6 +60,10 @@ Checks out the specified pull request in a dedicated tracking branch.
 If the remote repo is not already specified in your git config, it will be
 added and the branch in question will be fetched.
 
+## create
+
+Creates a new pull request.
+
 ## close <number>
 
 Closes the specified pull request number. Be aware, you can't close a pull
