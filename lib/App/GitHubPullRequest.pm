@@ -79,13 +79,15 @@ none is specified.
 
 sub list {
     my ($self, $state) = @_;
-    my $prs = $self->_fetch_all($state);
-    say ucfirst($prs->{'state'}) . " pull requests for '" . $prs->{"repo"} . "':";
-    unless ( $prs->{'pull_requests'} and @{ $prs->{'pull_requests'} } ) {
+    $state ||= 'open';
+    my $remote_repo = _find_github_remote();
+    my $prs = _api_read("/repos/$remote_repo/pulls?state=$state");
+    say ucfirst($state) . " pull requests for '$remote_repo':";
+    unless ( @$prs ) {
         say "No pull requests found.";
         return 0;
     }
-    foreach my $pr ( @{ $prs->{"pull_requests"} } ) {
+    foreach my $pr ( @$prs ) {
         my $number = $pr->{"number"};
         my $title = encode_utf8( $pr->{"title"} );
         my $date = $pr->{"updated_at"} || $pr->{'created_at'};
@@ -118,7 +120,7 @@ sub show {
         say "Number:  $number";
         say "\n$body\n" if $body;
     }
-    my $comments = $self->_fetch_comments($pr);
+    my $comments = _api_read( $pr->{'comments_url'} );
     foreach my $comment (@$comments) {
         my $user = $comment->{'user'}->{'login'};
         my $date = $comment->{'updated_at'} || $comment->{'created_at'};
@@ -140,7 +142,9 @@ Shows the patch associated with the specified pull request number.
 sub patch {
     my ($self, $number) = @_;
     die("Please specify a pull request number.\n") unless $number;
-    my $patch = $self->_fetch_patch($number);
+    my $patch = _get_url(
+        $self->_fetch_one($number)->{'patch_url'}
+    );
     die("Unable to fetch patch for pull request $number.\n")
         unless defined $patch;
     print $patch;
@@ -303,11 +307,11 @@ sub comment {
             die("Your comment is empty. Command aborted.\n");
         }
     }
-    my $url = _api_url("/repos/$remote_repo/issues/$number/comments");
-    my $mimetype = 'application/json';
-    my $data = encode_json({ "body" => $text });
     my $comment = eval {
-        decode_json( _post_url($url, $mimetype, $data) );
+        _api_create(
+            "/repos/$remote_repo/issues/$number/comments",
+            { "body" => $text },
+        );
     };
     die($@ . ( defined $filename ? "Comment text saved in '$filename'. Please remove it manually." : "" ) ."\n")
         if $@; # most likely network error
@@ -336,23 +340,31 @@ prompted for them.
 
 sub login {
     my ($self, $user, $password) = @_;
+
+    # Try to fetch user/password from git config (or prompt)
     $user     ||= _qx('git', "config github.user")     || _prompt('GitHub username');
     $password ||= _qx('git', "config github.password") || _prompt('GitHub password', 'hidden');
     die("Please specify a user name.\n") unless $user;
     die("Please specify a password.\n")  unless $password;
-    my $url = _api_url("/authorizations");
-    my $mimetype = 'application/json';
-    my $data = encode_json({
-        "scopes"   => [qw( public_repo repo )],
-        "note"     => __PACKAGE__,
-        "note_url" => 'https://metacpan/module/' . __PACKAGE__,
-    });
-    my $auth = decode_json( _post_url($url, $mimetype, $data, $user, $password) );
+
+    # Perform authentication
+    my $auth = _api_create(
+        "/authorizations",
+        {
+            "scopes"   => [qw( public_repo repo )],
+            "note"     => __PACKAGE__,
+            "note_url" => 'https://metacpan/module/' . __PACKAGE__,
+        },
+        $user,
+        $password,
+    );
     die("Unable to authenticate with GitHub.\n")
         unless defined $auth;
     my $token = $auth->{'token'};
     die("Authentication data does not include a token.\n")
         unless $token;
+
+    # Store successful authorization token
     my ($content, $rc) = _run_ext(qw(git config --global github.pr-token), $token);
     die("git config returned message '$content' and code $rc when trying to store your token.\n")
         if $rc != 0;
@@ -365,46 +377,16 @@ sub _state {
     croak("Please specify a pull request number") unless $number;
     croak("Please specify a pull request state") unless $state;
     my $remote_repo = _find_github_remote();
-    my $url = _api_url("/repos/$remote_repo/pulls/$number");
-    my $mimetype = 'application/json';
-    my $data = encode_json({ "state" => $state });
-    my $pr = decode_json( _patch_url($url, $mimetype, $data) );
-    return $pr;
-}
-
-sub _fetch_comments {
-    my ($self, $pr) = @_;
-    croak("Please specify a pull request") unless $pr;
-    my $comments_url = $pr->{'comments_url'};
-    my $comments = decode_json( _get_url($comments_url) );
-    return $comments;
-}
-
-sub _fetch_patch {
-    my ($self, $number) = @_;
-    my $patch_url = $self->_fetch_one($number)->{'patch_url'};
-    return _get_url($patch_url);
+    return _api_update(
+        "/repos/$remote_repo/pulls/$number",
+        { "state" => $state },
+    );
 }
 
 sub _fetch_one {
     my ($self, $number) = @_;
     my $remote_repo = _find_github_remote();
-    my $pr_url = _api_url("/repos/$remote_repo/pulls/$number");
-    my $pr = decode_json( _get_url($pr_url) );
-    return $pr;
-}
-
-sub _fetch_all {
-    my ($self, $state) = @_;
-    $state ||= 'open';
-    my $remote_repo = _find_github_remote();
-    my $pulls_url = _api_url("/repos/$remote_repo/pulls?state=$state");
-    my $pull_requests = decode_json( _get_url($pulls_url) );
-    return {
-        "repo"           => $remote_repo,
-        "state"          => $state,
-        "pull_requests"  => $pull_requests,
-    };
+    return _api_read("/repos/$remote_repo/pulls/$number");
 }
 
 sub _find_github_remote {
@@ -426,10 +408,7 @@ sub _find_github_remote {
         unless $repo;
 
     # Fetch repo information
-    my $repo_url = _api_url("/repos/$repo");
-    my $repo_info = decode_json( _get_url( $repo_url ) );
-    die("Unable to fetch repo information for $repo_url.\n")
-        unless $repo_info;
+    my $repo_info = _api_read("/repos/$repo");
 
     # Return the parent repo if repo is a fork
     return $repo_info->{'parent'}->{'full_name'}
@@ -558,6 +537,41 @@ sub _is_api_url {
     my $prefix = _api_url();
     return 1 if index($url, $prefix) == 0;
     return 0;
+}
+
+# Perform an API GET request
+sub _api_read {
+    my ($url) = @_;
+    return decode_json(
+        _get_url(
+            _api_url($url),
+        )
+    );
+}
+
+# Perform an API POST request
+sub _api_create {
+    my ($url, $data, @rest) = @_;
+    return decode_json(
+        _post_url(
+            _api_url($url),
+            'application/json',
+            encode_json($data),
+            @rest,
+        )
+    );
+}
+
+# Perform an API PATCH request
+sub _api_update {
+    my ($url, $data) = @_;
+    return decode_json(
+        _patch_url(
+            _api_url($url),
+            'application/json',
+            encode_json($data),
+        )
+    );
 }
 
 # Perform HTTP GET
