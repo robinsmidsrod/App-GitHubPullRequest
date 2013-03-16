@@ -440,15 +440,34 @@ sub _find_github_remote {
 }
 
 # Ask the user for some information
+# Disable local echo if $hide_echo is true (for passwords)
 sub _prompt {
     my ($label, $hide_echo) = @_;
+    _echo('off') if $hide_echo;
     print "$label: " if defined $label;
-    _require_binary('stty') if $hide_echo;
-    system("stty -echo") if $hide_echo;
     my $input = scalar <STDIN>;
-    system("stty echo") if $hide_echo;
     chomp $input;
+    print "\n";
+    _echo('on') if $hide_echo;
     return $input;
+}
+
+# Turn local echo on or off (Unix only for now)
+sub _echo {
+    my ($state) = @_;
+    croak("Please specify an echo state of on or off") unless $state;
+
+    # Test if we're on Unix (snatched from Platform::Unix)
+    my $is_unix = $^O =~ /^(Linux|.*BSD.*|.*UNIX.*|Darwin|Solaris|SunOS|Haiku|Next|dec_osf|svr4|sco_sv|unicos.*|.*x)$/i;
+
+    if ( $is_unix ) {
+        return _run_ext(qw{stty -echo}) if $state eq 'off';
+        return _run_ext(qw{stty echo})  if $state eq 'on';
+    }
+
+    # Don't know how to turn local echo on or off on other platforms.
+    # If you happen to know how, please send a pull request with a fix
+    return;
 }
 
 # Generate a random temporary filename with the given prefix
