@@ -468,6 +468,7 @@ sub _qx {
     my ($cmd, @rest) = @_;
     _require_binary($cmd);
     $cmd .= " " . join(" ", @rest) if @rest;
+    warn("_qx: $cmd\n") if DEBUG;
     return map { chomp; $_ } qx{$cmd}
         if wantarray;
     my $content = qx{$cmd};
@@ -481,7 +482,7 @@ sub _run_ext {
     croak("Please specify a command line") unless @_;
     my $cmd = join(" ", @_);
     my $prg = $_[0];
-    warn("$cmd\n") if DEBUG;
+    warn("_run_ext: $cmd\n") if DEBUG;
     _require_binary($prg);
     CORE::open my $fh, "-|", @_ or die("Can't run command '$cmd': $!");
     my $stdout = join("", <$fh>);
