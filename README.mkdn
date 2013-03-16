@@ -101,16 +101,10 @@ Constructor. Takes no parameters.
 Calls any of the other listed public methods with specified arguments. This
 is usually called automatically when you invoke [git-pr](http://search.cpan.org/perldoc?git-pr).
 
-# FUNCTIONS
-
-## DEBUG
-
-Returns true if we're in debug mode.
+# DEBUGGING
 
 Set the environment variable GIT\_PR\_DEBUG to a non-zero value to see more
 details, like each API command being executed.
-
-# DEBUGGING
 
 If you want to interact with another GitHub repo than the one in your
 current directory, set the environment variable GITHUB\_REPO to the name of

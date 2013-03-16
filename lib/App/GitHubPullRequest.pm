@@ -12,7 +12,7 @@ use JSON qw(decode_json encode_json);
 use Carp qw(croak);
 use Encode qw(encode_utf8);
 
-sub DEBUG;
+use constant DEBUG => $ENV{'GIT_PR_DEBUG'} || 0;
 
 =method new
 
@@ -505,19 +505,6 @@ sub _require_binary {
     die("You need the program '$bin' in your path to use this feature.\n");
 }
 
-=func DEBUG
-
-Returns true if we're in debug mode.
-
-Set the environment variable GIT_PR_DEBUG to a non-zero value to see more
-details, like each API command being executed.
-
-=cut
-
-sub DEBUG {
-    return $ENV{'GIT_PR_DEBUG'} || 0;
-}
-
 # Perform HTTP GET
 sub _get_url {
     my ($url) = @_;
@@ -666,6 +653,9 @@ The following external programs are required:
 
 
 =head1 DEBUGGING
+
+Set the environment variable GIT_PR_DEBUG to a non-zero value to see more
+details, like each API command being executed.
 
 If you want to interact with another GitHub repo than the one in your
 current directory, set the environment variable GITHUB_REPO to the name of
