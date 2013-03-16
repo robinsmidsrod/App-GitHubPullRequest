@@ -1,6 +1,8 @@
+#!perl
+
 use strict;
 use warnings;
-use feature qw(say);
+use feature qw(say state);
 
 package App::GitHubPullRequest;
 
@@ -493,8 +495,13 @@ sub _run_ext {
 sub _require_binary {
     my ($bin) = @_;
     croak("Please specify program to require") unless $bin;
-    system("which $bin >/dev/null");
-    return 1 if $? >> 8 == 0; # exit code is 0
+    state %cache;
+    unless (exists $cache{$bin}) {
+        warn("Checking if '$bin' exists in path.\n") if DEBUG;
+        system("which $bin >/dev/null");
+        $cache{$bin} = ( $? >> 8 == 0 ) ? 1 : 0; # found if exit code is 0
+    }
+    return 1 if $cache{$bin};
     die("You need the program '$bin' in your path to use this feature.\n");
 }
 
