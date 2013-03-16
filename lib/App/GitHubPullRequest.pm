@@ -303,7 +303,7 @@ sub comment {
             die("Your comment is empty. Command aborted.\n");
         }
     }
-    my $url = "https://api.github.com/repos/$remote_repo/issues/$number/comments";
+    my $url = _api_url("/repos/$remote_repo/issues/$number/comments");
     my $mimetype = 'application/json';
     my $data = encode_json({ "body" => $text });
     my $comment = eval {
@@ -340,7 +340,7 @@ sub login {
     $password ||= _qx('git', "config github.password") || _prompt('GitHub password', 'hidden');
     die("Please specify a user name.\n") unless $user;
     die("Please specify a password.\n")  unless $password;
-    my $url = "https://api.github.com/authorizations";
+    my $url = _api_url("/authorizations");
     my $mimetype = 'application/json';
     my $data = encode_json({
         "scopes"   => [qw( public_repo repo )],
@@ -365,7 +365,7 @@ sub _state {
     croak("Please specify a pull request number") unless $number;
     croak("Please specify a pull request state") unless $state;
     my $remote_repo = _find_github_remote();
-    my $url = "https://api.github.com/repos/$remote_repo/pulls/$number";
+    my $url = _api_url("/repos/$remote_repo/pulls/$number");
     my $mimetype = 'application/json';
     my $data = encode_json({ "state" => $state });
     my $pr = decode_json( _patch_url($url, $mimetype, $data) );
@@ -389,7 +389,7 @@ sub _fetch_patch {
 sub _fetch_one {
     my ($self, $number) = @_;
     my $remote_repo = _find_github_remote();
-    my $pr_url = "https://api.github.com/repos/$remote_repo/pulls/$number";
+    my $pr_url = _api_url("/repos/$remote_repo/pulls/$number");
     my $pr = decode_json( _get_url($pr_url) );
     return $pr;
 }
@@ -398,7 +398,7 @@ sub _fetch_all {
     my ($self, $state) = @_;
     $state ||= 'open';
     my $remote_repo = _find_github_remote();
-    my $pulls_url = "https://api.github.com/repos/$remote_repo/pulls?state=$state";
+    my $pulls_url = _api_url("/repos/$remote_repo/pulls?state=$state");
     my $pull_requests = decode_json( _get_url($pulls_url) );
     return {
         "repo"           => $remote_repo,
@@ -426,7 +426,7 @@ sub _find_github_remote {
         unless $repo;
 
     # Fetch repo information
-    my $repo_url = "https://api.github.com/repos/$repo";
+    my $repo_url = _api_url("/repos/$repo");
     my $repo_info = decode_json( _get_url( $repo_url ) );
     die("Unable to fetch repo information for $repo_url.\n")
         unless $repo_info;
@@ -518,6 +518,29 @@ sub _require_binary {
     die("You need the program '$bin' in your path to use this feature.\n");
 }
 
+# Return the base GitHub API URL as mentioned
+# on http://developer.github.com/v3/
+sub _api_url {
+    my ($url) = @_;
+    my $prefix = 'https://api.github.com/';
+    # If no URL specified, just return the API URL
+    return $prefix unless defined $url;
+    # If URL already looks like a GitHub API URL, do nothing
+    return $url if _is_api_url($url);
+    # Create an API URL out of a partial URL as
+    $url =~ s{^/*}{}; # Remove initial slashes, if any
+    return $prefix . $url;
+}
+
+# Check if a URL is a GitHub API URL
+sub _is_api_url {
+    my ($url) = @_;
+    croak("Please specify a URL to verify") unless $url;
+    my $prefix = _api_url();
+    return 1 if index($url, $prefix) == 0;
+    return 0;
+}
+
 # Perform HTTP GET
 sub _get_url {
     my ($url) = @_;
@@ -525,7 +548,7 @@ sub _get_url {
 
     # See if we should use credentials
     my @credentials;
-    if ( $url =~ m{^https://api.github.com/} ) {
+    if ( _is_api_url($url) ) {
         my $token = _qx('git', 'config github.pr-token');
         @credentials = ( '-H', "Authorization: token $token" ) if $token;
     }
@@ -557,7 +580,7 @@ sub _patch_url {
 
     # See if we should use credentials
     my @credentials;
-    if ( $url =~ m{^https://api.github.com/} ) {
+    if ( _is_api_url($url) ) {
         my $token = _qx('git', 'config github.pr-token');
         die("You must login before you can modify information.\n")
             unless $token;
@@ -600,7 +623,7 @@ sub _post_url {
 
     # See if we should use credentials
     my @credentials;
-    if ( $url =~ m{^https://api.github.com/} ) {
+    if ( _is_api_url($url) ) {
         my $token = _qx('git', 'config github.pr-token');
         die("You must login before you can modify information.\n")
             unless $token or ( $user and $password );
