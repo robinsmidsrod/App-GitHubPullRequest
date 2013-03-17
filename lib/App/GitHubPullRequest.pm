@@ -321,9 +321,9 @@ sub comment {
 
     # Remove temporary file if everything went well
     if ( defined $filename and -e $filename ) {
-        unlink $filename;
+        my $count = unlink $filename;
         warn("Unable to remove temporary file $filename: $!\n")
-            if $!;
+            unless $count;
     }
 
     return 0;
