@@ -279,6 +279,7 @@ edit the text.  If it has not been set, it will try to use the L<editor(1)>
 external program.  This is usually a symlink set up by your operating system
 to the most recently installed text editor.
 
+The text must be encoded using UTF-8.
 =cut
 
 sub comment {
@@ -297,7 +298,7 @@ sub comment {
         system($editor, $filename);
         # Fetch text just edited (if any)
         if ( -r $filename ) {
-            CORE::open my $fh, "<", $filename or die "Can't open $filename: $!";
+            CORE::open my $fh, "<:encoding(UTF-8)", $filename or die "Can't open $filename: $!";
             $text = join "", <$fh>;
             CORE::close $fh;
         }
