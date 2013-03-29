@@ -9,6 +9,7 @@ package App::GitHubPullRequest;
 use JSON qw(decode_json encode_json);
 use Carp qw(croak);
 use Encode qw(encode_utf8);
+use Net::SSH::Perl::Config;
 
 sub DEBUG;
 
@@ -401,13 +402,29 @@ sub _fetch_all {
 sub _find_github_remote {
     # Parse lines from git and use first found github repo
     my $repo;
+    my @possible_aliased_urls;
     foreach my $line ( _qx('git', 'remote -v') ) {
         my ($remote, $url, $type) = split /\s+/, $line;
+        push @possible_aliased_urls, $url;
         next unless $type eq '(fetch)'; # only consider fetch remotes
         next unless $url =~ m/github\.com/; # only consider remotes to github
         if ( $url =~ m{github.com[:/](.+?)(?:\.git)?$} ) {
             $repo = $1;
             last;
+        }
+    }
+
+    if (!$repo) {
+        foreach my $possible_aliased_url ( @possible_aliased_urls ) {
+            my ($possible_aliased_host, $repository) = split ':', $possible_aliased_url;
+            my $ssh_config = Net::SSH::Perl::Config->new($possible_aliased_host);
+            $ssh_config->read_config("/home/$ENV{USER}/.ssh/config");
+            if ($ssh_config->get('hostname')
+                    and $ssh_config->get('hostname') eq 'github.com'
+                    and $ssh_config->get('user') eq 'git') {
+                $repo = $repository;
+                last;
+            }
         }
     }
 
