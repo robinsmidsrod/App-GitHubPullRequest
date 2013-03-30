@@ -161,10 +161,15 @@ added and the branch in question will be fetched.
 
 sub checkout {
     my ($self, $number) = @_;
-    die("Please specify a pull request number.\n") unless $number;
-    my $pr = $self->_fetch_one($number);
-    die("Unable to fetch pull request $number.\n")
-        unless defined $pr;
+    my $pr;
+    $number =~ s{[^\d]}{}g if defined $number;
+    if ($number) {
+        $pr = $self->_fetch_one($number);
+        die("Unable to fetch pull request $number.\n")
+            unless defined $pr;
+    } else {
+        die("Please specify a pull request number.\n");
+    }
 
     # Get required contributor branch info
     my $head_repo   = $pr->{'head'}->{'repo'}->{'git_url'};
