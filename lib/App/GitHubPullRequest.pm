@@ -148,8 +148,8 @@ added and the branch in question will be fetched.
 
 sub checkout {
     my ($self, $number) = @_;
-    die("Please specify a pull request number.\n") unless $number;
     $number =~ s{[^\d]}{}g;
+    die("Please specify a pull request number.\n") unless $number;
     my $pr = $self->_fetch_one($number);
     die("Unable to fetch pull request $number.\n")
         unless defined $pr;
