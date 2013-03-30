@@ -418,7 +418,7 @@ sub _find_github_remote {
         foreach my $possible_aliased_url ( @possible_aliased_urls ) {
             my ($possible_aliased_host, $repository) = split ':', $possible_aliased_url;
             my $ssh_config = Net::SSH::Perl::Config->new($possible_aliased_host);
-            $ssh_config->read_config("/home/$ENV{USER}/.ssh/config");
+            $ssh_config->read_config("$ENV{HOME}/.ssh/config");
             if ($ssh_config->get('hostname')
                     and $ssh_config->get('hostname') eq 'github.com'
                     and $ssh_config->get('user') eq 'git') {
