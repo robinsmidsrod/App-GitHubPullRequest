@@ -1,6 +1,8 @@
+#!perl
+
 use strict;
 use warnings;
-use feature qw(say);
+use feature qw(say state);
 
 package App::GitHubPullRequest;
 
@@ -9,8 +11,15 @@ package App::GitHubPullRequest;
 use JSON qw(decode_json encode_json);
 use Carp qw(croak);
 use Encode qw(encode_utf8);
+use File::Spec;
 
-sub DEBUG;
+use constant DEBUG => $ENV{'GIT_PR_DEBUG'} || 0;
+
+=method new
+
+Constructor. Takes no parameters.
+
+=cut
 
 sub new {
     my ($class) = @_;
@@ -70,13 +79,15 @@ none is specified.
 
 sub list {
     my ($self, $state) = @_;
-    my $prs = $self->_fetch_all($state);
-    say ucfirst($prs->{'state'}) . " pull requests for '" . $prs->{"repo"} . "':";
-    unless ( $prs->{'pull_requests'} and @{ $prs->{'pull_requests'} } ) {
+    $state ||= 'open';
+    my $remote_repo = _find_github_remote();
+    my $prs = _api_read("/repos/$remote_repo/pulls?state=$state");
+    say ucfirst($state) . " pull requests for '$remote_repo':";
+    unless ( @$prs ) {
         say "No pull requests found.";
         return 0;
     }
-    foreach my $pr ( @{ $prs->{"pull_requests"} } ) {
+    foreach my $pr ( @$prs ) {
         my $number = $pr->{"number"};
         my $title = encode_utf8( $pr->{"title"} );
         my $date = $pr->{"updated_at"} || $pr->{'created_at'};
@@ -109,7 +120,7 @@ sub show {
         say "Number:  $number";
         say "\n$body\n" if $body;
     }
-    my $comments = $self->_fetch_comments($pr);
+    my $comments = _api_read( $pr->{'comments_url'} );
     foreach my $comment (@$comments) {
         my $user = $comment->{'user'}->{'login'};
         my $date = $comment->{'updated_at'} || $comment->{'created_at'};
@@ -131,7 +142,9 @@ Shows the patch associated with the specified pull request number.
 sub patch {
     my ($self, $number) = @_;
     die("Please specify a pull request number.\n") unless $number;
-    my $patch = $self->_fetch_patch($number);
+    my $patch = _get_url(
+        $self->_fetch_one($number)->{'patch_url'}
+    );
     die("Unable to fetch patch for pull request $number.\n")
         unless defined $patch;
     print $patch;
@@ -232,7 +245,7 @@ C<Validation Failed> error message from the GitHub API.
 
 =cut
 
-sub close {
+sub close { ## no critic (Subroutines::ProhibitBuiltinHomonyms)
     my ($self, $number) = @_;
     die("Please specify a pull request number.\n") unless $number;
     my $pr = $self->_state($number, 'closed');
@@ -251,7 +264,7 @@ GitHub API.
 
 =cut
 
-sub open {
+sub open { ## no critic (Subroutines::ProhibitBuiltinHomonyms)
     my ($self, $number) = @_;
     die("Please specify a pull request number.\n") unless $number;
     my $pr = $self->_state($number, 'open');
@@ -271,6 +284,7 @@ edit the text.  If it has not been set, it will try to use the L<editor(1)>
 external program.  This is usually a symlink set up by your operating system
 to the most recently installed text editor.
 
+The text must be encoded using UTF-8.
 =cut
 
 sub comment {
@@ -289,7 +303,7 @@ sub comment {
         system($editor, $filename);
         # Fetch text just edited (if any)
         if ( -r $filename ) {
-            CORE::open my $fh, "<", $filename or die "Can't open $filename: $!";
+            CORE::open my $fh, "<:encoding(UTF-8)", $filename or die "Can't open $filename: $!";
             $text = join "", <$fh>;
             CORE::close $fh;
         }
@@ -299,11 +313,11 @@ sub comment {
             die("Your comment is empty. Command aborted.\n");
         }
     }
-    my $url = "https://api.github.com/repos/$remote_repo/issues/$number/comments";
-    my $mimetype = 'application/json';
-    my $data = encode_json({ "body" => $text });
     my $comment = eval {
-        decode_json( _post_url($url, $mimetype, $data) );
+        _api_create(
+            "/repos/$remote_repo/issues/$number/comments",
+            { "body" => $text },
+        );
     };
     die($@ . ( defined $filename ? "Comment text saved in '$filename'. Please remove it manually." : "" ) ."\n")
         if $@; # most likely network error
@@ -313,9 +327,9 @@ sub comment {
 
     # Remove temporary file if everything went well
     if ( defined $filename and -e $filename ) {
-        unlink $filename;
+        my $count = unlink $filename;
         warn("Unable to remove temporary file $filename: $!\n")
-            if $!;
+            unless $count;
     }
 
     return 0;
@@ -332,23 +346,31 @@ prompted for them.
 
 sub login {
     my ($self, $user, $password) = @_;
+
+    # Try to fetch user/password from git config (or prompt)
     $user     ||= _qx('git', "config github.user")     || _prompt('GitHub username');
     $password ||= _qx('git', "config github.password") || _prompt('GitHub password', 'hidden');
     die("Please specify a user name.\n") unless $user;
     die("Please specify a password.\n")  unless $password;
-    my $url = "https://api.github.com/authorizations";
-    my $mimetype = 'application/json';
-    my $data = encode_json({
-        "scopes"   => [qw( public_repo repo )],
-        "note"     => __PACKAGE__,
-        "note_url" => 'https://metacpan/module/' . __PACKAGE__,
-    });
-    my $auth = decode_json( _post_url($url, $mimetype, $data, $user, $password) );
+
+    # Perform authentication
+    my $auth = _api_create(
+        "/authorizations",
+        {
+            "scopes"   => [qw( public_repo repo )],
+            "note"     => __PACKAGE__,
+            "note_url" => 'https://metacpan/module/' . __PACKAGE__,
+        },
+        $user,
+        $password,
+    );
     die("Unable to authenticate with GitHub.\n")
         unless defined $auth;
     my $token = $auth->{'token'};
     die("Authentication data does not include a token.\n")
         unless $token;
+
+    # Store successful authorization token
     my ($content, $rc) = _run_ext(qw(git config --global github.pr-token), $token);
     die("git config returned message '$content' and code $rc when trying to store your token.\n")
         if $rc != 0;
@@ -361,46 +383,16 @@ sub _state {
     croak("Please specify a pull request number") unless $number;
     croak("Please specify a pull request state") unless $state;
     my $remote_repo = _find_github_remote();
-    my $url = "https://api.github.com/repos/$remote_repo/pulls/$number";
-    my $mimetype = 'application/json';
-    my $data = encode_json({ "state" => $state });
-    my $pr = decode_json( _patch_url($url, $mimetype, $data) );
-    return $pr;
-}
-
-sub _fetch_comments {
-    my ($self, $pr) = @_;
-    croak("Please specify a pull request") unless $pr;
-    my $comments_url = $pr->{'comments_url'};
-    my $comments = decode_json( _get_url($comments_url) );
-    return $comments;
-}
-
-sub _fetch_patch {
-    my ($self, $number) = @_;
-    my $patch_url = $self->_fetch_one($number)->{'patch_url'};
-    return _get_url($patch_url);
+    return _api_update(
+        "/repos/$remote_repo/pulls/$number",
+        { "state" => $state },
+    );
 }
 
 sub _fetch_one {
     my ($self, $number) = @_;
     my $remote_repo = _find_github_remote();
-    my $pr_url = "https://api.github.com/repos/$remote_repo/pulls/$number";
-    my $pr = decode_json( _get_url($pr_url) );
-    return $pr;
-}
-
-sub _fetch_all {
-    my ($self, $state) = @_;
-    $state ||= 'open';
-    my $remote_repo = _find_github_remote();
-    my $pulls_url = "https://api.github.com/repos/$remote_repo/pulls?state=$state";
-    my $pull_requests = decode_json( _get_url($pulls_url) );
-    return {
-        "repo"           => $remote_repo,
-        "state"          => $state,
-        "pull_requests"  => $pull_requests,
-    };
+    return _api_read("/repos/$remote_repo/pulls/$number");
 }
 
 sub _find_github_remote {
@@ -422,10 +414,7 @@ sub _find_github_remote {
         unless $repo;
 
     # Fetch repo information
-    my $repo_url = "https://api.github.com/repos/$repo";
-    my $repo_info = decode_json( _get_url( $repo_url ) );
-    die("Unable to fetch repo information for $repo_url.\n")
-        unless $repo_info;
+    my $repo_info = _api_read("/repos/$repo");
 
     # Return the parent repo if repo is a fork
     return $repo_info->{'parent'}->{'full_name'}
@@ -436,15 +425,34 @@ sub _find_github_remote {
 }
 
 # Ask the user for some information
+# Disable local echo if $hide_echo is true (for passwords)
 sub _prompt {
     my ($label, $hide_echo) = @_;
+    _echo('off') if $hide_echo;
     print "$label: " if defined $label;
-    _require_binary('stty') if $hide_echo;
-    system("stty -echo") if $hide_echo;
     my $input = scalar <STDIN>;
-    system("stty echo") if $hide_echo;
     chomp $input;
+    print "\n";
+    _echo('on') if $hide_echo;
     return $input;
+}
+
+# Turn local echo on or off (Unix only for now)
+sub _echo {
+    my ($state) = @_;
+    croak("Please specify an echo state of on or off") unless $state;
+
+    # Test if we're on Unix (snatched from Platform::Unix)
+    my $is_unix = $^O =~ /^(Linux|.*BSD.*|.*UNIX.*|Darwin|Solaris|SunOS|Haiku|Next|dec_osf|svr4|sco_sv|unicos.*|.*x)$/i;
+
+    if ( $is_unix ) {
+        return _run_ext(qw{stty -echo}) if $state eq 'off';
+        return _run_ext(qw{stty echo})  if $state eq 'on';
+    }
+
+    # Don't know how to turn local echo on or off on other platforms.
+    # If you happen to know how, please send a pull request with a fix
+    return;
 }
 
 # Generate a random temporary filename with the given prefix
@@ -465,6 +473,7 @@ sub _qx {
     my ($cmd, @rest) = @_;
     _require_binary($cmd);
     $cmd .= " " . join(" ", @rest) if @rest;
+    warn("_qx: $cmd\n") if DEBUG;
     return map { chomp; $_ } qx{$cmd}
         if wantarray;
     my $content = qx{$cmd};
@@ -473,11 +482,12 @@ sub _qx {
 }
 
 # Run an external command and return STDOUT and exit code
+## no critic (Subroutines::RequireArgUnpacking)
 sub _run_ext {
     croak("Please specify a command line") unless @_;
     my $cmd = join(" ", @_);
     my $prg = $_[0];
-    warn("$cmd\n") if DEBUG;
+    warn("_run_ext: $cmd\n") if DEBUG;
     _require_binary($prg);
     CORE::open my $fh, "-|", @_ or die("Can't run command '$cmd': $!");
     my $stdout = join("", <$fh>);
@@ -485,33 +495,89 @@ sub _run_ext {
     my $rc = $? >> 8; # exit code, see perldoc perlvar for details
     return $stdout, $rc;
 }
+## use critic
 
 # Make sure a program is present in path
 sub _require_binary {
     my ($bin) = @_;
     croak("Please specify program to require") unless $bin;
-    system("which $bin >/dev/null");
-    return 1 if $? >> 8 == 0; # exit code is 0
+    state %cache;
+    unless (exists $cache{$bin}) {
+        # Cache miss, let's see if we can find that program
+        warn("Checking if '$bin' exists in path\n") if DEBUG;
+        # Figure out path elements in a cross-platform way and go through
+        # each and check if it has the executable program in it
+        my @path = File::Spec->path();
+        while (my $dir = shift @path) {
+            my $file = File::Spec->catfile($dir, $bin);
+            warn("Looking for executable bit on '$file'\n") if DEBUG;
+            ## no critic (ValuesAndExpressions::ProhibitCommaSeparatedStatements)
+            $cache{$bin} = $file, last if -x $file;
+            ## use critic
+            $cache{$bin} = 0;
+        }
+        warn("'$bin' was found at '$cache{$bin}'\n") if DEBUG and $cache{$bin};
+    }
+    return 1 if $cache{$bin};
     die("You need the program '$bin' in your path to use this feature.\n");
 }
 
-=head1 DEBUGGING
+# Return the base GitHub API URL as mentioned
+# on http://developer.github.com/v3/
+sub _api_url {
+    my ($url) = @_;
+    my $prefix = 'https://api.github.com/';
+    # If no URL specified, just return the API URL
+    return $prefix unless defined $url;
+    # If URL already looks like a GitHub API URL, do nothing
+    return $url if _is_api_url($url);
+    # Create an API URL out of a partial URL as
+    $url =~ s{^/*}{}; # Remove initial slashes, if any
+    return $prefix . $url;
+}
 
-Set the environment variable PRQ_DEBUG to a non-zero value to see more
-details, like each API command being executed.
+# Check if a URL is a GitHub API URL
+sub _is_api_url {
+    my ($url) = @_;
+    croak("Please specify a URL to verify") unless $url;
+    my $prefix = _api_url();
+    return 1 if index($url, $prefix) == 0;
+    return 0;
+}
 
-If you want to interact with another GitHub repo than the one in your
-current directory, set the environment variable GITHUB_REPO to the name of
-the repo in question. Example:
+# Perform an API GET request
+sub _api_read {
+    my ($url) = @_;
+    return decode_json(
+        _get_url(
+            _api_url($url),
+        )
+    );
+}
 
-    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest git pr list
+# Perform an API POST request
+sub _api_create {
+    my ($url, $data, @rest) = @_;
+    return decode_json(
+        _post_url(
+            _api_url($url),
+            'application/json',
+            encode_json($data),
+            @rest,
+        )
+    );
+}
 
-Be aware, that if that repo is a fork, the program will look for its parent.
-
-=cut
-
-sub DEBUG {
-    return $ENV{'PRQ_DEBUG'} || 0;
+# Perform an API PATCH request
+sub _api_update {
+    my ($url, $data) = @_;
+    return decode_json(
+        _patch_url(
+            _api_url($url),
+            'application/json',
+            encode_json($data),
+        )
+    );
 }
 
 # Perform HTTP GET
@@ -521,7 +587,7 @@ sub _get_url {
 
     # See if we should use credentials
     my @credentials;
-    if ( $url =~ m{^https://api.github.com/} ) {
+    if ( _is_api_url($url) ) {
         my $token = _qx('git', 'config github.pr-token');
         @credentials = ( '-H', "Authorization: token $token" ) if $token;
     }
@@ -553,7 +619,7 @@ sub _patch_url {
 
     # See if we should use credentials
     my @credentials;
-    if ( $url =~ m{^https://api.github.com/} ) {
+    if ( _is_api_url($url) ) {
         my $token = _qx('git', 'config github.pr-token');
         die("You must login before you can modify information.\n")
             unless $token;
@@ -596,7 +662,7 @@ sub _post_url {
 
     # See if we should use credentials
     my @credentials;
-    if ( $url =~ m{^https://api.github.com/} ) {
+    if ( _is_api_url($url) ) {
         my $token = _qx('git', 'config github.pr-token');
         die("You must login before you can modify information.\n")
             unless $token or ( $user and $password );
@@ -659,6 +725,20 @@ The following external programs are required:
 * L<git(1)>
 * L<curl(1)>
 * L<stty(1)>
+
+
+=head1 DEBUGGING
+
+Set the environment variable GIT_PR_DEBUG to a non-zero value to see more
+details, like each API command being executed.
+
+If you want to interact with another GitHub repo than the one in your
+current directory, set the environment variable GITHUB_REPO to the name of
+the repo in question. Example:
+
+    GITHUB_REPO=robinsmidsrod/App-GitHubPullRequest git pr list
+
+Be aware, that if that repo is a fork, the program will look for its parent.
 
 
 =head1 CAVEATS

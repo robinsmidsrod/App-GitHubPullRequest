@@ -4,7 +4,7 @@ App::GitHubPullRequest - Command-line tool to query GitHub pull requests
 
 # VERSION
 
-version 0.3.0
+version 0.3.1
 
 # SYNOPSIS
 
@@ -83,6 +83,8 @@ edit the text.  If it has not been set, it will try to use the [editor(1)](http:
 external program.  This is usually a symlink set up by your operating system
 to the most recently installed text editor.
 
+The text must be encoded using UTF-8.
+
 ## login \[<user>\] \[<password>\]
 
 Logs you in to GitHub and creates a new access token used instead of your
@@ -92,6 +94,10 @@ prompted for them.
 
 # METHODS
 
+## new
+
+Constructor. Takes no parameters.
+
 ## run(@args)
 
 Calls any of the other listed public methods with specified arguments. This
@@ -99,7 +105,7 @@ is usually called automatically when you invoke [git-pr](http://search.cpan.org/
 
 # DEBUGGING
 
-Set the environment variable PRQ\_DEBUG to a non-zero value to see more
+Set the environment variable GIT\_PR\_DEBUG to a non-zero value to see more
 details, like each API command being executed.
 
 If you want to interact with another GitHub repo than the one in your

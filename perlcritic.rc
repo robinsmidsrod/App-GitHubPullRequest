@@ -1,0 +1,9 @@
+severity = 4
+
+# These policies we don't use
+[-Miscellanea::RequireRcsKeywords]
+[-ValuesAndExpressions::ProhibitConstantPragma]
+
+# Allows us to set use strict;use warnings before package keyword
+[-Modules::RequireExplicitPackage]
+[Lax::RequireExplicitPackage::ExceptForPragmata]
