@@ -168,7 +168,7 @@ sub checkout {
         if ( $url eq $head_repo ) {
             $head_remote = $remote;
         }
-        if ( $remote eq 'origin' and $url =~ m/github\.com:$repo_owner/) {
+        if ( $remote eq 'origin' and $url =~ m/github\.com:$repo_owner\//) {
             $head_remote = 'origin';
             last;
         }
