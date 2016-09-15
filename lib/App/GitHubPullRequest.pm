@@ -589,6 +589,7 @@ sub _get_url {
     # Send request
     my ($content, $rc) = _run_ext(
         'curl',
+        '-L',                            # follow redirects
         '-s',                            # be silent
         '-w', '%{http_code}',            # include HTTP status code at end of stdout
         @credentials,                    # Logon credentials, if any
