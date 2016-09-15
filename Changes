@@ -1,6 +1,8 @@
 Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
+
+0.4.0     2016-09-16 00:48:38+02:00 Europe/Oslo
     - Added two-factor login support
     - Now follow redirects, solving several issues
     - Now skips invalid git remotes
