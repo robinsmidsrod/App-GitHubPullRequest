@@ -395,31 +395,52 @@ sub _fetch_one {
 
 sub _find_github_remote {
     # Parse lines from git and use first found github repo
-    my $repo;
+    my @repos;
+    my $repo_map = {};
     foreach my $line ( _qx('git', 'remote -v') ) {
         my ($remote, $url, $type) = split /\s+/, $line;
         next unless $type eq '(fetch)'; # only consider fetch remotes
         next unless $url =~ m/github\.com/; # only consider remotes to github
         if ( $url =~ m{github.com[:/](.+?)(?:\.git)?$} ) {
-            $repo = $1;
-            last;
+            push @repos, $1;
+            $repo_map->{$1} = $remote;
         }
     }
 
     # Allow override for testing
-    $repo = $ENV{"GITHUB_REPO"} if $ENV{'GITHUB_REPO'};
-    die("No valid GitHub remote repo found.\n")
-        unless $repo;
+    @repos = ( $ENV{"GITHUB_REPO"} ) if $ENV{'GITHUB_REPO'};
 
-    # Fetch repo information
-    my $repo_info = _api_read("/repos/$repo");
+    die("No valid GitHub repos found.\n")
+        unless @repos;
 
-    # Return the parent repo if repo is a fork
-    return $repo_info->{'parent'}->{'full_name'}
-        if $repo_info->{'fork'};
+    # Try each repo found in turn
+    while ( my $repo = shift @repos ) {
+        print "Fetching GitHub repo: $repo\n"
+            if DEBUG;
+        # Fetch repo information
+        my ($repo_info, $code) = _api_read("/repos/$repo", 'return_on_error');
 
-    # Not a fork, use this repo
-    return $repo;
+        # Skip repo which is not found
+        if ( $code eq 404 ) {
+            print STDERR "WARNING: Skipping invalid GitHub repo: $repo\n";
+            if ( $repo_map->{$repo} ) {
+                print STDERR "WARNING:\n";
+                print STDERR "WARNING: Remove invalid git remote with command:\n";
+                print STDERR "WARNING:   git remote remove $repo_map->{$repo}\n";
+                print STDERR "WARNING:\n";
+            }
+            next;
+        }
+
+        # Return the parent repo if repo is a fork
+        return $repo_info->{'parent'}->{'full_name'}
+            if $repo_info->{'fork'};
+
+        # Not a fork, use this repo
+        return $repo;
+    }
+
+    die("No valid GitHub repo found. List of remotes exhausted.\n");
 }
 
 # Ask the user for some information
@@ -545,12 +566,14 @@ sub _is_api_url {
 
 # Perform an API GET request
 sub _api_read {
-    my ($url) = @_;
-    return decode_json(
-        _get_url(
-            _api_url($url),
-        )
+    my ($url, $return_on_error) = @_;
+    my ($response, $code) = _get_url(
+        _api_url($url),
+        $return_on_error,
     );
+    return decode_json($response), $code
+        if $return_on_error;
+    return decode_json($response);
 }
 
 # Perform an API POST request
@@ -580,7 +603,7 @@ sub _api_update {
 
 # Perform HTTP GET
 sub _get_url {
-    my ($url) = @_;
+    my ($url, $return_on_error) = @_;
     croak("Please specify a URL") unless $url;
 
     # See if we should use credentials
@@ -602,6 +625,9 @@ sub _get_url {
     die("curl failed to fetch $url with code $rc.\n") if $rc != 0;
 
     my $code = substr($content, -3, 3, '');
+
+    return $content, $code if $return_on_error;
+
     if ( $code >= 400 ) {
         die("Fetching URL $url failed with code $code:\n$content");
     }
