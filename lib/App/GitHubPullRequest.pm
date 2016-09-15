@@ -368,7 +368,7 @@ sub login {
     my ($content, $rc) = _run_ext(qw(git config --global github.pr-token), $token);
     die("git config returned message '$content' and code $rc when trying to store your token.\n")
         if $rc != 0;
-    say "Access token stored successfully. Go to https://github.com/settings/applications to revoke access.";
+    say "Access token stored successfully. Go to https://github.com/settings/tokens to revoke access.";
     return 0;
 }
 
