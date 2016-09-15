@@ -1,6 +1,9 @@
 Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
+    - Added two-factor login support
+    - Now follow redirects, solving several issues
+    - Now skips invalid git remotes
 
 0.3.1     2013-03-15 16:10:15 Europe/Oslo
     - Changed debug environment variable from PRQ_DEBUG to GIT_PR_DEBUG
