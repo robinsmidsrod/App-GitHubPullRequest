@@ -60,7 +60,8 @@ Where command is one of these:
   patch <number>    Fetch a properly formatted patch for specified pull request
   checkout <number> Create tracking branch for specified pull request
 
-  login [<user>] [<password>] Login to GitHub and receive an access token
+  login [<user>] [<password>] [<two-factor-auth-token>]
+                              Login to GitHub and receive an access token
   comment <number> [<text>]   Create a comment on the specified pull request
   close <number>              Close the specified pull request
   open <number>               Reopen the specified pull request
@@ -329,23 +330,25 @@ sub comment {
     return 0;
 }
 
-=cmd login [<user>] [<password>]
+=cmd login [<user>] [<password>] [<2fa-token>]
 
 Logs you in to GitHub and creates a new access token used instead of your
-password.  If you don't specify either of the options, they are looked up in
-your git config github section.  If none of those are found, you'll be
-prompted for them.
+password and two-factor authentication token.  If you don't specify either
+of the options, they are looked up in your git config github section.  If
+none of those are found, you'll be prompted for them.
 
 =cut
 
 sub login {
-    my ($self, $user, $password) = @_;
+    my ($self, $user, $password, $two_factor_token) = @_;
 
     # Try to fetch user/password from git config (or prompt)
     $user     ||= _qx('git', "config github.user")     || _prompt('GitHub username');
     $password ||= _qx('git', "config github.password") || _prompt('GitHub password', 'hidden');
     die("Please specify a user name.\n") unless $user;
     die("Please specify a password.\n")  unless $password;
+    # Prompt for two-factor auth token
+    $two_factor_token ||= _prompt('GitHub two-factor authentication token (if any)');
 
     # Perform authentication
     my $auth = _api_create(
@@ -357,6 +360,7 @@ sub login {
         },
         $user,
         $password,
+        $two_factor_token,
     );
     die("Unable to authenticate with GitHub.\n")
         unless defined $auth;
@@ -650,7 +654,7 @@ sub _patch_url {
 
 # Perform HTTP POST
 sub _post_url {
-    my ($url, $mimetype, $data, $user, $password) = @_;
+    my ($url, $mimetype, $data, $user, $password, $two_factor_token) = @_;
     croak("Please specify a URL") unless $url;
     croak("Please specify a mimetype") unless $mimetype;
     croak("Please specify some data") unless $data;
@@ -663,6 +667,8 @@ sub _post_url {
             unless $token or ( $user and $password );
         if ( $user and $password ) {
             @credentials = ( '-u', "$user:$password" );
+            push @credentials, '-H', "X-GitHub-OTP: $two_factor_token"
+                if $two_factor_token;
         }
         else {
             @credentials = ( '-H', "Authorization: token $token" ) if $token;
