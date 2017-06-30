@@ -39,41 +39,41 @@ The following external programs are required:
 
 Displays some help.
 
-## list \[<state>\]
+## list \[&lt;state>\]
 
 Shows all pull requests in the given state. State can be either `open` or
 `closed`.  The default state is `open`.  This is the default command if
 none is specified.
 
-## show <number>
+## show &lt;number>
 
 Shows details about the specified pull request number. Also includes
 comments.
 
-## patch <number>
+## patch &lt;number>
 
 Shows the patch associated with the specified pull request number.
 
-## checkout <number>
+## checkout &lt;number>
 
 Checks out the specified pull request in a dedicated tracking branch.
 If the remote repo is not already specified in your git config, it will be
 added and the branch in question will be fetched.
 
-## close <number>
+## close &lt;number>
 
 Closes the specified pull request number. Be aware, you can't close a pull
 request that has already been merged.  If you try to, you'll get an obscure
 `Validation Failed` error message from the GitHub API.
 
-## open <number>
+## open &lt;number>
 
 Reopens the specified pull request number. Be aware, you can't reopen a pull
 request that has already been merged or closed by the repo owner.  If you
 try to, you'll get an obscure `Validation Failed` error message from the
 GitHub API.
 
-## comment <number> \[<text>\]
+## comment &lt;number> \[&lt;text>\]
 
 Creates a comment on the specified pull request with the specified text. If
 text is not specified, an editor will be opened for you to type in the text.
@@ -85,7 +85,7 @@ to the most recently installed text editor.
 
 The text must be encoded using UTF-8.
 
-## login \[<user>\] \[<password>\] \[<2fa-token>\]
+## login \[&lt;user>\] \[&lt;password>\] \[<2fa-token>\]
 
 Logs you in to GitHub and creates a new access token used instead of your
 password and two-factor authentication token.  If you don't specify either
@@ -101,7 +101,7 @@ Constructor. Takes no parameters.
 ## run(@args)
 
 Calls any of the other listed public methods with specified arguments. This
-is usually called automatically when you invoke [git-pr](http://search.cpan.org/perldoc?git-pr).
+is usually called automatically when you invoke [git-pr](https://metacpan.org/pod/git-pr).
 
 # DEBUGGING
 
@@ -128,7 +128,7 @@ have a remote that points to github.com for the tool to work.
 
 # SEE ALSO
 
-- [git-pr](http://search.cpan.org/perldoc?git-pr)
+- [git-pr](https://metacpan.org/pod/git-pr)
 - [GitHub Pull Request documentation](https://help.github.com/articles/using-pull-requests)
 - [GitHub Pull Request API documentation](http://developer.github.com/v3/pulls/)
 
@@ -165,7 +165,7 @@ in addition to those websites please use your favorite search engine to discover
 
     The RT ( Request Tracker ) website is the default bug/issue tracking system for CPAN.
 
-    [http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-GitHubPullRequest](http://rt.cpan.org/NoAuth/Bugs.html?Dist=App-GitHubPullRequest)
+    [https://rt.cpan.org/Public/Dist/Display.html?Name=App-GitHubPullRequest](https://rt.cpan.org/Public/Dist/Display.html?Name=App-GitHubPullRequest)
 
 - AnnoCPAN
 
@@ -189,7 +189,7 @@ in addition to those websites please use your favorite search engine to discover
 
     The CPANTS is a website that analyzes the Kwalitee ( code metrics ) of a distribution.
 
-    [http://cpants.perl.org/dist/overview/App-GitHubPullRequest](http://cpants.perl.org/dist/overview/App-GitHubPullRequest)
+    [http://cpants.cpanauthors.org/dist/App-GitHubPullRequest](http://cpants.cpanauthors.org/dist/App-GitHubPullRequest)
 
 - CPAN Testers
 
@@ -212,7 +212,7 @@ in addition to those websites please use your favorite search engine to discover
 ## Bugs / Feature Requests
 
 Please report any bugs or feature requests by email to `bug-app-githubpullrequest at rt.cpan.org`, or through
-the web interface at [http://rt.cpan.org/NoAuth/ReportBug.html?Queue=App-GitHubPullRequest](http://rt.cpan.org/NoAuth/ReportBug.html?Queue=App-GitHubPullRequest). You will be automatically notified of any
+the web interface at [https://rt.cpan.org/Public/Bug/Report.html?Queue=App-GitHubPullRequest](https://rt.cpan.org/Public/Bug/Report.html?Queue=App-GitHubPullRequest). You will be automatically notified of any
 progress on the request by the system.
 
 ## Source Code
