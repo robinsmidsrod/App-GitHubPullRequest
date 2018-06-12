@@ -167,7 +167,7 @@ sub checkout {
     my $pr = $self->_fetch_one($number);
 
     # Get required contributor branch info
-    my $head_repo   = $pr->{'head'}->{'repo'}->{'git_url'};
+    my $head_repo   = $pr->{'head'}->{'repo'}->{'clone_url'};
     my $head_branch = $pr->{'head'}->{'ref'};
     my $head_user   = $pr->{'head'}->{'user'}->{'login'};
 
