@@ -24,7 +24,7 @@ exit $rc;
     $ git pr checkout 7  # create upstream tracking branch pr/7
     $ git pr help
 
-    $ git pr login       # Get access token for commands below
+    $ git pr authorize   # Get access token for commands below
     $ git pr close 7
     $ git pr open 7
     $ git pr comment 7 'This is good stuff!'

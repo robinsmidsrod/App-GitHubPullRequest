@@ -333,10 +333,10 @@ sub comment {
 
 =cmd login [<user>] [<password>] [<2fa-token>]
 
-Logs you in to GitHub and creates a new access token used instead of your
-password and two-factor authentication token.  If you don't specify either
-of the options, they are looked up in your git config github section.  If
-none of those are found, you'll be prompted for them.
+DEPRECATED: Logs you in to GitHub and creates a new access token used
+instead of your password and two-factor authentication token. If you don't
+specify either of the options, they are looked up in your git config github
+section. If none of those are found, you'll be prompted for them.
 
 =cut
 
