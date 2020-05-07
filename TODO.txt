@@ -1,0 +1,35 @@
+create _api_read($partial_url)
+	- does decode_json() on return data automatically
+	- hardcodes API url prefix in one place
+
+create _api_create($partial_url, $data)
+	- does encode_json() on data automatically
+	- does decode_json() on return data automatically
+	- sets mimetype
+	- hardcodes API url prefix in one place
+
+create _api_update($partial_url, $data)
+	- does encode_json() on data automatically
+	- does decode_json() on return data automatically
+	- sets mimetype
+	- hardcodes API url prefix in one place
+
+
+get writable git push urls:
+	git remote -v | grep '(push)' | grep -v git://
+
+get pushable github url for current branch:
+	git remote show -n $(git config branch.$(git rev-parse --abbrev-ref HEAD).remote)| grep -P 'Push\s+URL' | grep -v git:// | cut -d " " -f 6
+
+update remote tracking branch
+	git config branch.$(git rev-parse --abbrev-ref HEAD).remote someremote
+
+Details here: https://github.com/robinsmidsrod/App-GitHubPullRequest/pull/6#issuecomment-15019117
+
+<robinsmidsrod> btw, how would you go about testing my git-pr tool?
+<robinsmidsrod> trying to avoid having to mock all of github's pull request API
+<mst> er, I'd write an HTTP::Tiny::MakeFixtures
+<mst> that creates a JSON file of responses to given requests
+<mst> then you can run it 'live'
+<mst> and replay that JSON file as a mock afterwards
+<mst> thereby removing the effort involved in the mocking
