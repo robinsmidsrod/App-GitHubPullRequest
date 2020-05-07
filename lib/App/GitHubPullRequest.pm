@@ -61,7 +61,8 @@ Where command is one of these:
   checkout <number> Create tracking branch for specified pull request
 
   login [<user>] [<password>] [<two-factor-auth-token>]
-                              Login to GitHub and receive an access token
+                              Login to GitHub and receive an access token (deprecated)
+  authorize                   Create a GitHub OAuth personal access token
   comment <number> [<text>]   Create a comment on the specified pull request
   close <number>              Close the specified pull request
   open <number>               Reopen the specified pull request
@@ -342,6 +343,10 @@ none of those are found, you'll be prompted for them.
 sub login {
     my ($self, $user, $password, $two_factor_token) = @_;
 
+    # Add deprecation message
+    say "\nThis authorization method is deprecated and will be removed on November 13, 2020.";
+    say "Please use the 'authorize' command to authenticate with GitHub.\n";
+
     # Try to fetch user/password from git config (or prompt)
     $user     ||= _qx('git', "config github.user")     || _prompt('GitHub username');
     $password ||= _qx('git', "config github.password") || _prompt('GitHub password', 'hidden');
@@ -368,7 +373,43 @@ sub login {
     die("Authentication data does not include a token.\n")
         unless $token;
 
-    # Store successful authorization token
+    # Store authorization token
+    my ($content, $rc) = _run_ext(qw(git config --global github.pr-token), $token);
+    die("git config returned message '$content' and code $rc when trying to store your token.\n")
+        if $rc != 0;
+    say "Access token stored successfully. Go to https://github.com/settings/tokens to revoke access.";
+    return 0;
+}
+
+=cmd authorize [<access-token>]
+
+Logs you in to GitHub by manually creating an OAuth personal access token.
+Follow the directions on-screen to generate one and insert it when prompted.
+If you already have an access token you want to use you can also specify it
+on the command line.
+
+=cut
+
+sub authorize {
+    my ($self, $token) = @_;
+    # Verify that you want to overwrite an existing token
+    my $old_token = _qx('git', "config github.pr-token");
+    if ( $old_token and not $token ) {
+        say "You're already authorized.";
+        my $q = _prompt("Do you want to generate a new token (y/N)") || "n";
+        return 0 if lc($q) ne 'y';
+    }
+    # Give instructions and ask for token if not specified on command line
+    unless ( $token ) {
+        say "Go to https://github.com/settings/tokens/new and follow the directions to generate a new token.";
+        say "Give the token a name of your choice, e.g. 'git-pr', and give it the 'repo' permission.";
+        say "The 'public_repo' permission is enough if you only plan to use it with public repositories.\n";
+        $token = _prompt('GitHub OAuth personal access token');
+    }
+    # Make sure a token is specified
+    die("No token was specified. No changes have been made to your configuration.\n")
+        unless $token;
+    # Store authorization token
     my ($content, $rc) = _run_ext(qw(git config --global github.pr-token), $token);
     die("git config returned message '$content' and code $rc when trying to store your token.\n")
         if $rc != 0;
