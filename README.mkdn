@@ -15,7 +15,7 @@ version 0.5.0
     $ git pr checkout 7  # create upstream tracking branch pr/7
     $ git pr help
 
-    $ git pr login       # Get access token for commands below
+    $ git pr authorize   # Get access token for commands below
     $ git pr close 7
     $ git pr open 7
     $ git pr comment 7 'This is good stuff!'
@@ -125,9 +125,9 @@ Be aware, that if that repo is a fork, the program will look for its parent.
 
 # CAVEATS
 
-If you don't authenticate with GitHub using the login command, it will use
+If you don't authenticate with GitHub using the authorize command, it will use
 unauthenticated API requests where possible, which has a rate-limit of 60
-requests.  If you login first it should allow 5000 requests before you hit
+requests.  If you authorize first it should allow 5000 requests before you hit
 the limit.
 
 You must be standing in a directory that is a git dir and that directory must

@@ -47,9 +47,9 @@ The following external programs are required:
 
 =head1 CAVEATS
 
-If you don't authenticate with GitHub using the login command, it will use
+If you don't authenticate with GitHub using the authorize command, it will use
 unauthenticated API requests where possible, which has a rate-limit of 60
-requests.  If you login first it should allow 5000 requests before you hit
+requests.  If you authorize first it should allow 5000 requests before you hit
 the limit.
 
 You must be standing in a directory that is a git dir and that directory must
