@@ -1,6 +1,8 @@
 Revision history for App-GitHubPullRequest
 
 {{$NEXT}}
+
+0.6.0     2020-05-07 17:41:03+02:00 Europe/Oslo
     - Added authorize command using GitHub OAuth personal access tokens
 
 0.5.0     2018-06-12 10:38:33+02:00 Europe/Oslo
