@@ -4,7 +4,7 @@ App::GitHubPullRequest - Command-line tool to query GitHub pull requests
 
 # VERSION
 
-version 0.5.0
+version 0.6.0
 
 # SYNOPSIS
 
@@ -238,7 +238,7 @@ Robin Smidsrød <robin@smidsrod.no>
 
 # COPYRIGHT AND LICENSE
 
-This software is copyright (c) 2016 by Robin Smidsrød.
+This software is copyright (c) 2020 by Robin Smidsrød.
 
 This is free software; you can redistribute it and/or modify it under
 the same terms as the Perl 5 programming language system itself.
