@@ -92,6 +92,13 @@ password and two-factor authentication token.  If you don't specify either
 of the options, they are looked up in your git config github section.  If
 none of those are found, you'll be prompted for them.
 
+## authorize \[&lt;access-token>\]
+
+Logs you in to GitHub by manually creating an OAuth personal access token.
+Follow the directions on-screen to generate one and insert it when prompted.
+If you already have an access token you want to use you can also specify it
+on the command line.
+
 # METHODS
 
 ## new
