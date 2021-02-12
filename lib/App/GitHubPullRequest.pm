@@ -171,6 +171,8 @@ sub checkout {
     my $head_repo   = $pr->{'head'}->{'repo'}->{'clone_url'};
     my $head_branch = $pr->{'head'}->{'ref'};
     my $head_user   = $pr->{'head'}->{'user'}->{'login'};
+    my $repo_owner  = $pr->{'base'}{'label'};
+    $repo_owner =~ s/:.*//;
 
     # Check if the remote already exists in our repo
     my $head_remote;
@@ -179,6 +181,9 @@ sub checkout {
         next unless $type eq '(fetch)'; # only consider fetch remotes
         if ( $url eq $head_repo ) {
             $head_remote = $remote;
+        }
+        if ( $remote eq 'origin' and $url =~ m/github\.com:$repo_owner\//) {
+            $head_remote = 'origin';
             last;
         }
     }
